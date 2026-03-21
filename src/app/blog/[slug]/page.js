@@ -37,16 +37,16 @@ function markdownToHtml(md) {
 
 async function getPost(slug) {
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const now = new Date().toISOString();
 
   const { data } = await supabase
     .from('blog_posts')
     .select('*, blog_categories(name, slug)')
     .eq('slug', slug)
     .eq('published', true)
-    // 예약 시간이 없거나, 예약 시간이 지난 글만
-    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
     .single();
+
+  if (!data) return null;
+  if (data.scheduled_at && new Date(data.scheduled_at) > new Date()) return null;
   return data;
 }
 
