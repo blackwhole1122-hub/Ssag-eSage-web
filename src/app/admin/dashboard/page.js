@@ -169,14 +169,25 @@ export default function AdminDashboard() {
             <p className="text-sm font-bold text-gray-800">핫딜 관리</p>
             <p className="text-xs text-gray-400 mt-1">데이터 조회 및 삭제</p>
           </a>
+          
           <a
-            href="/admin/thermometer"
+             href="/admin/thermometer"
             className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-all"
           >
             <div className="text-2xl mb-2">🌡️</div>
             <p className="text-sm font-bold text-gray-800">온도계 관리</p>
             <p className="text-xs text-gray-400 mt-1">키워드 추가/삭제</p>
           </a>
+          
+          <a
+            href="/admin/blog"
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-all"
+          >
+            <div className="text-2xl mb-2">📝</div>
+            <p className="text-sm font-bold text-gray-800">블로그 관리</p>
+            <p className="text-xs text-gray-400 mt-1">정보성 글 작성 · 애드센스</p>
+          </a>
+
           <a
             href="/admin/members"
             className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-all opacity-50"
@@ -185,6 +196,7 @@ export default function AdminDashboard() {
             <p className="text-sm font-bold text-gray-800">회원 관리</p>
             <p className="text-xs text-gray-400 mt-1">준비 중</p>
           </a>
+          
           <a
             href="/admin/board"
             className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 hover:shadow-md transition-all opacity-50"
