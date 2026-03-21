@@ -151,7 +151,7 @@ const gradeBadge = {
   href="/blog"
   className="flex items-center gap-1.5 bg-blue-50 border border-blue-300 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors"
 >
-  📝 블로그
+  📝 정보모음
 </a>
       </header>
 
