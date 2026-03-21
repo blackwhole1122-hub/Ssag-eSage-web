@@ -12,7 +12,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "싸게사게 💸",
+  title: "싸게사게 | 핫딜 모음 & 역대가 분석",
   description: "핫딜 모음 사이트",
 };
 
