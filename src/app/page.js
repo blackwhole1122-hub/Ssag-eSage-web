@@ -139,12 +139,8 @@ const gradeBadge = {
         <h1 className="text-lg font-bold text-gray-800">싸게사게 💸</h1>
         {/* 세로 구분선 */}
         <div className="w-px h-5 bg-gray-200"></div>
-        <a
-          href="/hotdeal-thermometer"
-          className="flex items-center gap-1.5 bg-orange-50 border border-orange-300 text-orange-700 text-xs font-medium px-3 py-1.5 rounded-full hover:bg-orange-100 transition-colors"
-        >
-          🌡️ 핫딜온도계
-        </a>
+
+
       </header>
 
       {/* 검색창 */}
