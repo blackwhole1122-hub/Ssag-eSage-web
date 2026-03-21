@@ -21,12 +21,15 @@ export const revalidate = 60;
 
 async function getData() {
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const now = new Date().toISOString();
 
   const [postsRes, catsRes] = await Promise.all([
     supabase
       .from('blog_posts')
-      .select('id, slug, title, description, emoji, created_at, category_id')
+      .select('id, slug, title, description, emoji, created_at, category_id, scheduled_at')
       .eq('published', true)
+      // 예약 시간이 없거나(즉시 게시), 예약 시간이 지난 글만
+      .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
       .order('created_at', { ascending: false }),
     supabase
       .from('blog_categories')
@@ -52,7 +55,6 @@ export default async function BlogListPage() {
         </p>
       </header>
 
-      {/* 카테고리 탭 (클라이언트 컴포넌트) */}
       <BlogCategoryTabs posts={posts} categories={categories} />
     </div>
   );

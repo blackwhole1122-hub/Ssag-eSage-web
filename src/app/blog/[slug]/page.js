@@ -37,11 +37,15 @@ function markdownToHtml(md) {
 
 async function getPost(slug) {
   const supabase = createClient(supabaseUrl, supabaseKey);
+  const now = new Date().toISOString();
+
   const { data } = await supabase
     .from('blog_posts')
     .select('*, blog_categories(name, slug)')
     .eq('slug', slug)
     .eq('published', true)
+    // 예약 시간이 없거나, 예약 시간이 지난 글만
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
     .single();
   return data;
 }
@@ -116,20 +120,19 @@ export default async function BlogPostPage({ params }) {
 
         <hr className="border-gray-200 mb-10" />
 
-        <div
-          className="
-            [&_.md-h1]:text-2xl [&_.md-h1]:font-bold [&_.md-h1]:mt-10 [&_.md-h1]:mb-4 [&_.md-h1]:text-gray-900
-            [&_.md-h2]:text-xl [&_.md-h2]:font-bold [&_.md-h2]:mt-8 [&_.md-h2]:mb-3 [&_.md-h2]:text-gray-900
-            [&_.md-h3]:text-lg [&_.md-h3]:font-semibold [&_.md-h3]:mt-6 [&_.md-h3]:mb-2 [&_.md-h3]:text-gray-800
-            [&_.md-p]:text-gray-700 [&_.md-p]:leading-8 [&_.md-p]:mb-5 [&_.md-p]:text-[15px]
-            [&_.md-link]:text-blue-600 [&_.md-link]:underline [&_.md-link]:underline-offset-2
-            [&_.md-img]:rounded-xl [&_.md-img]:my-6 [&_.md-img]:max-w-full [&_.md-img]:shadow-sm
-            [&_.md-quote]:border-l-4 [&_.md-quote]:border-blue-300 [&_.md-quote]:pl-5 [&_.md-quote]:text-gray-600 [&_.md-quote]:italic [&_.md-quote]:my-6 [&_.md-quote]:bg-blue-50 [&_.md-quote]:py-3 [&_.md-quote]:pr-4 [&_.md-quote]:rounded-r-lg
-            [&_.md-ul]:list-disc [&_.md-ul]:pl-6 [&_.md-ul]:my-5
-            [&_.md-li]:text-gray-700 [&_.md-li]:mb-2 [&_.md-li]:leading-7
-            [&_.md-codeblock]:bg-gray-900 [&_.md-codeblock]:text-green-300 [&_.md-codeblock]:p-5 [&_.md-codeblock]:rounded-xl [&_.md-codeblock]:overflow-x-auto [&_.md-codeblock]:text-sm [&_.md-codeblock]:my-6
-            [&_.md-inline-code]:bg-gray-100 [&_.md-inline-code]:text-pink-600 [&_.md-inline-code]:px-1.5 [&_.md-inline-code]:py-0.5 [&_.md-inline-code]:rounded [&_.md-inline-code]:text-sm [&_.md-inline-code]:font-mono
-            [&_.md-hr]:border-gray-200 [&_.md-hr]:my-8"
+        <div className="
+          [&_.md-h1]:text-2xl [&_.md-h1]:font-bold [&_.md-h1]:mt-10 [&_.md-h1]:mb-4 [&_.md-h1]:text-gray-900
+          [&_.md-h2]:text-xl [&_.md-h2]:font-bold [&_.md-h2]:mt-8 [&_.md-h2]:mb-3 [&_.md-h2]:text-gray-900
+          [&_.md-h3]:text-lg [&_.md-h3]:font-semibold [&_.md-h3]:mt-6 [&_.md-h3]:mb-2 [&_.md-h3]:text-gray-800
+          [&_.md-p]:text-gray-700 [&_.md-p]:leading-8 [&_.md-p]:mb-5 [&_.md-p]:text-[15px]
+          [&_.md-link]:text-blue-600 [&_.md-link]:underline [&_.md-link]:underline-offset-2
+          [&_.md-img]:rounded-xl [&_.md-img]:my-6 [&_.md-img]:max-w-full [&_.md-img]:shadow-sm
+          [&_.md-quote]:border-l-4 [&_.md-quote]:border-blue-300 [&_.md-quote]:pl-5 [&_.md-quote]:text-gray-600 [&_.md-quote]:italic [&_.md-quote]:my-6 [&_.md-quote]:bg-blue-50 [&_.md-quote]:py-3 [&_.md-quote]:pr-4 [&_.md-quote]:rounded-r-lg
+          [&_.md-ul]:list-disc [&_.md-ul]:pl-6 [&_.md-ul]:my-5
+          [&_.md-li]:text-gray-700 [&_.md-li]:mb-2 [&_.md-li]:leading-7
+          [&_.md-codeblock]:bg-gray-900 [&_.md-codeblock]:text-green-300 [&_.md-codeblock]:p-5 [&_.md-codeblock]:rounded-xl [&_.md-codeblock]:overflow-x-auto [&_.md-codeblock]:text-sm [&_.md-codeblock]:my-6
+          [&_.md-inline-code]:bg-gray-100 [&_.md-inline-code]:text-pink-600 [&_.md-inline-code]:px-1.5 [&_.md-inline-code]:py-0.5 [&_.md-inline-code]:rounded [&_.md-inline-code]:text-sm [&_.md-inline-code]:font-mono
+          [&_.md-hr]:border-gray-200 [&_.md-hr]:my-8"
           dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
 
