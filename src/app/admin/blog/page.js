@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import Link from 'next/link';
 
 export default function AdminBlogPage() {
   const router = useRouter();
@@ -111,7 +112,7 @@ export default function AdminBlogPage() {
           <button onClick={() => router.push('/admin/blog/editor')}
             className="text-xs bg-blue-600 text-white px-4 py-1.5 rounded-full hover:bg-blue-700 transition-colors font-medium">
             + 새 글 작성
-          </button> // ✅ 정상
+          </button>
         </div>
       </header>
 
@@ -213,7 +214,9 @@ export default function AdminBlogPage() {
                     </button>
                   </div>
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                    <button onClick={() => router.push(`/admin/blog/editor?id=${post.id}`)} className="flex-1 text-xs text-center py-2 bg-blue-50 text-blue-600 rounded-xl font-medium hover:bg-blue-100 transition-colors">수정</button>
+                    <Link href={`/admin/blog/editor?id=${post.id}`} className="flex-1 text-xs text-center py-2 bg-blue-50 text-blue-600 rounded-xl font-medium hover:bg-blue-100 transition-colors block">
+                      수정
+                    </Link>
                     <button onClick={() => deletePost(post)} className="flex-1 text-xs text-center py-2 bg-red-50 text-red-500 rounded-xl font-medium hover:bg-red-100 transition-colors">삭제</button>
                   </div>
                 </div>
