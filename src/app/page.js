@@ -340,8 +340,13 @@ const gradeBadge = {
       </main>
 
       <footer className="text-center p-6 text-gray-400 text-xs">
-        © 2026 싸게사게
-      </footer>
+  © 2026 싸게사게
+  <div className="mt-2">
+    <a href="/privacy" className="hover:text-gray-600 transition-colors underline">
+      개인정보처리방침
+    </a>
+  </div>
+</footer>
     </div>
   );
 }
