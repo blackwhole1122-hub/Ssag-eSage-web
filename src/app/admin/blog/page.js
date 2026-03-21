@@ -108,7 +108,7 @@ export default function AdminBlogPage() {
             className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${showCategoryManager ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
             🏷️ 카테고리
           </button>
-          <button onClick={() => router.push('/admin/blog/editor')}
+          <a href="/admin/blog/editor"
             className="text-xs bg-blue-600 text-white px-4 py-1.5 rounded-full hover:bg-blue-700 transition-colors font-medium">
             + 새 글 작성
           </button>
@@ -173,7 +173,7 @@ export default function AdminBlogPage() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 text-center py-16">
             <p className="text-4xl mb-3">✍️</p>
             <p className="text-sm text-gray-500 mb-4">아직 작성된 글이 없어요</p>
-            <button onClick={() => router.push('/admin/blog/editor')} className="text-xs bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700">첫 글 작성하기</button>
+            <a href={`/admin/blog/editor?id=${post.id}`} className="flex-1 text-xs text-center py-2 bg-blue-50 text-blue-600 rounded-xl font-medium hover:bg-blue-100 transition-colors">수정</a>
           </div>
         )}
 
