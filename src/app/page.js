@@ -94,6 +94,22 @@ export default function Home() {
     fetchPriceStats();
   }, [fetchDeals]);
 
+  // 무한스크롤 감지
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          const nextPage = page + 1;
+          setPage(nextPage);
+          fetchDeals(nextPage);
+        }
+      },
+      { threshold: 0.5 }
+    );
+    if (observerRef.current) observer.observe(observerRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading, page, fetchDeals]);
+
   // 카테고리 키워드 매핑
 const categoryKeywords = {
   "식품":    ["식품", "먹거리", "음식", "건강", "생활/식품"],
