@@ -62,8 +62,10 @@ export default function AdminDashboard() {
 
       setStats({ totalDeals, todayDeals, totalPriceHistory, sourceStats });
     } catch (e) {
-      console.error(e);
-    }
+  if (process.env.NODE_ENV === 'development') {
+    console.error('[Dev Error]', e);
+  }
+}
     setLoading(false);
   }
 

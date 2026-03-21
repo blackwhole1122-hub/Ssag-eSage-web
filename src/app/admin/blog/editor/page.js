@@ -173,7 +173,14 @@ function BlogEditorInner() {
     setSaving(false);
 
     if (error) {
-      alert(error.code === '23505' ? '이미 같은 슬러그의 글이 있어요!' : `저장 실패: ${error.message}`);
+      if (error.code === '23505') {
+        alert('이미 같은 슬러그의 글이 있어요!');
+      } else {
+        alert('저장에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        if (process.env.NODE_ENV === 'development') {
+          console.error('[Blog Save Error]', error);
+        }
+      }
       return;
     }
     setSaved(true);
