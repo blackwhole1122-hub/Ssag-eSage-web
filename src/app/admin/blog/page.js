@@ -109,7 +109,7 @@ export default function AdminBlogPage() {
             className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${showCategoryManager ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
             🏷️ 카테고리
           </button>
-          <button onClick={() => router.push('/admin/blog/editor')}
+          <button onClick={() => window.location.href = '/admin/blog/editor'}
             className="text-xs bg-blue-600 text-white px-4 py-1.5 rounded-full hover:bg-blue-700 transition-colors font-medium">
             + 새 글 작성
           </button>
@@ -214,9 +214,9 @@ export default function AdminBlogPage() {
                     </button>
                   </div>
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                    <Link href={`/admin/blog/editor?id=${post.id}`} className="flex-1 text-xs text-center py-2 bg-blue-50 text-blue-600 rounded-xl font-medium hover:bg-blue-100 transition-colors block">
+                    <button onClick={() => window.location.href = `/admin/blog/editor?id=${post.id}`} className="flex-1 text-xs text-center py-2 bg-blue-50 text-blue-600 rounded-xl font-medium hover:bg-blue-100 transition-colors">
                       수정
-                    </Link>
+                    </button>
                     <button onClick={() => deletePost(post)} className="flex-1 text-xs text-center py-2 bg-red-50 text-red-500 rounded-xl font-medium hover:bg-red-100 transition-colors">삭제</button>
                   </div>
                 </div>
