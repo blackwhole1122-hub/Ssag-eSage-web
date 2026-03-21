@@ -63,25 +63,36 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    async function fetchPriceStats() {
+      try {
+        const { data, error } = await supabase
+          .from('price_history')
+          .select('title, price_num')
+          .gt('price_num', 0);
+        if (error || !data) return;
+        const grouped = {};
+        data.forEach(row => {
+          const kw = matchKeyword(row.title);
+          if (!kw) return;
+          if (!grouped[kw]) grouped[kw] = [];
+          grouped[kw].push(row.price_num);
+        });
+        const stats = {};
+        Object.entries(grouped).forEach(([kw, prices]) => {
+          if (prices.length < 3) return;
+          const minPrice = Math.min(...prices);
+          const avgPrice = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+          stats[kw] = { minPrice, avgPrice, count: prices.length };
+        });
+        setPriceStats(stats);
+      } catch (e) {
+        console.error('가격 통계 불러오기 실패:', e);
+      }
+    }
+
     fetchDeals(0, true);
     fetchPriceStats();
-  }, []);
-
-  // 무한스크롤 감지
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          fetchDeals(nextPage);
-        }
-      },
-      { threshold: 0.5 }
-    );
-    if (observerRef.current) observer.observe(observerRef.current);
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, page, fetchDeals]);
+  }, [fetchDeals]);
 
   // 카테고리 키워드 매핑
 const categoryKeywords = {
