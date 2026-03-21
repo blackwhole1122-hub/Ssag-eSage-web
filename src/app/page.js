@@ -140,8 +140,22 @@ const gradeBadge = {
         {/* 세로 구분선 */}
         <div className="w-px h-5 bg-gray-200"></div>
 
+        <a
+  href="/hotdeal-thermometer"
+  className="flex items-center gap-1.5 bg-orange-50 border border-orange-300 text-orange-700 text-xs font-medium px-3 py-1.5 rounded-full hover:bg-orange-100 transition-colors"
+>
+  🌡️ 핫딜온도계
+</a>
 
+<a
+  href="/blog"
+  className="flex items-center gap-1.5 bg-blue-50 border border-blue-300 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors"
+>
+  📝 블로그
+</a>
       </header>
+
+
 
       {/* 검색창 */}
       <div className="p-3 bg-white border-b">
