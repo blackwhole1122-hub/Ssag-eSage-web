@@ -1,8 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function CallbackPage() {
+function CallbackContent() {
   const searchParams = useSearchParams();
   const code = searchParams.get('code');
 
@@ -23,5 +23,13 @@ export default function CallbackPage() {
         <p style={{color: 'red'}}>❌ code가 없어요.</p>
       )}
     </div>
+  );
+}
+
+export default function CallbackPage() {
+  return (
+    <Suspense fallback={<div>로딩중...</div>}>
+      <CallbackContent />
+    </Suspense>
   );
 }
