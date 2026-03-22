@@ -46,11 +46,20 @@ export default function Home() {
     const from = pageNum * 20;
     const to = from + 19;
 
-    const { data, error } = await supabase
+    let query = supabase
       .from('hotdeals')
       .select('*')
       .order('crawled_at', { ascending: false })
       .range(from, to);
+
+    if (sourceFilter !== "전체") {
+      query = query.eq('source', sourceFilter);
+    }
+    if (searchQuery) {
+      query = query.ilike('title', `%${searchQuery}%`);
+    }
+
+    const { data, error } = await query;
 
     if (error) console.error('데이터 불러오기 실패:', error);
     else {
@@ -60,7 +69,7 @@ export default function Home() {
 
     if (pageNum === 0) setLoading(false);
     else setLoadingMore(false);
-  }, []);
+  }, [sourceFilter, searchQuery]);
 
   useEffect(() => {
     async function fetchPriceStats() {
@@ -94,6 +103,14 @@ export default function Home() {
     fetchPriceStats();
   }, [fetchDeals]);
 
+  // 필터 변경시 초기화
+  useEffect(() => {
+    setAllDeals([]);
+    setPage(0);
+    setHasMore(true);
+    fetchDeals(0, true);
+  }, [sourceFilter, searchQuery, fetchDeals]);
+
   // 무한스크롤 감지
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -122,13 +139,7 @@ const categoryKeywords = {
   "기타":    ["기타", "상품권", "취미", "여행"],
 };
 
-const filteredDeals = allDeals.filter((deal) => {
-  const isSourceMatch = sourceFilter === "전체" || deal.source === sourceFilter;
-  const isCategoryMatch = category === "전체" || 
-    categoryKeywords[category]?.some(k => deal.category?.includes(k));
-  const isSearchMatch = deal.title?.toLowerCase().includes(searchQuery.toLowerCase());
-  return isSourceMatch && isCategoryMatch && isSearchMatch;
-});
+
 
 const categories = ["전체", "식품", "생활잡화", "게임", "PC", "가전", "의류", "화장품", "기타"];
 const sources = ["전체", "dogdrip", "fmkorea", "arca", "clien", "ppomppu", "quasarzone", "zod", "ruliweb"];
@@ -138,6 +149,11 @@ const sourceLabel = {
   zod: "ZOD", ruliweb: "루리웹"
 };
 
+
+const filteredDeals = allDeals.filter((deal) => {
+    return category === "전체" ||
+      categoryKeywords[category]?.some(k => deal.category?.includes(k));
+  });
 
 const gradeBadge = {
     "역대급": "bg-purple-500 text-purple-100",
