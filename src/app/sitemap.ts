@@ -2,7 +2,6 @@ import { MetadataRoute } from 'next'
 import { supabase } from '@/lib/supabase'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // 블로그 글 목록 가져오기
   const { data: posts } = await supabase
     .from('blog_posts')
     .select('slug, updated_at')
