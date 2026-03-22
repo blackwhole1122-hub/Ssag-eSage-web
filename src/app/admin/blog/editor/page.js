@@ -35,7 +35,9 @@ function markdownToHtml(md) {
 }
 
 function generateSlug(title) {
-  return title.toLowerCase().replace(/[^a-z0-9가-힣\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+  const date = new Date().toISOString().slice(0, 10);
+  const random = Math.random().toString(36).slice(2, 6);
+  return `post-${date}-${random}`;
 }
 
 const TOOLBAR_ITEMS = [
