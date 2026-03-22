@@ -1,7 +1,6 @@
-import { MetadataRoute } from 'next'
 import { supabase } from '@/lib/supabase'
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default async function sitemap() {
   const { data: posts } = await supabase
     .from('blog_posts')
     .select('slug, updated_at')
