@@ -32,13 +32,21 @@ export default function DealDetail() {
   }, [id]);
 
   // 2. deal 가져온 후 쿠팡 링크 변환
+  // ★ shop_url 또는 url에 "coupang" 문자열이 포함된 경우 무조건 파트너스 링크로 변환
   useEffect(() => {
     async function convertLink() {
       const shopUrl = deal?.shop_url || deal?.url;
-      if (!shopUrl?.includes('coupang.com')) {
+      if (!shopUrl) {
+        setBuyUrl(deal?.url || '');
+        return;
+      }
+
+      // "coupang" 포함 여부로 판단 (coupang.com, link.coupang.com, cp.ee 등 모두 처리)
+      if (!shopUrl.includes('coupang')) {
         setBuyUrl(shopUrl);
         return;
       }
+
       try {
         const res = await fetch(`/api/coupang?url=${encodeURIComponent(shopUrl)}`);
         const data = await res.json();
@@ -62,16 +70,20 @@ export default function DealDetail() {
     </div>
   );
 
-  const isCoupang = (deal?.shop_url || deal?.url)?.includes('coupang.com');
+  const rawUrl = deal?.shop_url || deal?.url || '';
+  const isCoupang = rawUrl.includes('coupang');
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10">
 
-      {/* 헤더 */}
+      {/* 헤더: 메인 페이지로 이동 */}
       <header className="bg-white border-b p-4 sticky top-0 z-10 shadow-sm flex items-center gap-3">
         <button
-          onClick={() => router.back()}
-          className="text-gray-400 hover:text-gray-600 text-xl"
+          onClick={() => {
+            // 브라우저 뒤로가기 대신 무조건 메인 주소로 이동
+            router.push('/');
+          }}
+          className="text-gray-400 hover:text-gray-600 text-xl px-1"
         >
           ←
         </button>
