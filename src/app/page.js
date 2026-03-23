@@ -175,7 +175,7 @@ const gradeBadge = {
     <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10">
       {/* 헤더 */}
       <header className="bg-white border-b p-4 sticky top-0 z-10 shadow-sm flex items-center gap-3">
-        <h1 className="text-lg font-bold text-gray-800">싸게사게 🦀</h1>
+        <a href="https://www.ssagesage.com/"><h1 className="text-lg font-bold text-gray-800">싸게사게 🦀</h1></a>
         {/* 세로 구분선 */}
         <div className="w-px h-5 bg-gray-200"></div>
 
