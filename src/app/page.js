@@ -2,19 +2,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 
-const TRACK_KEYWORDS = [
-  "동원비안나", "동원참치", "비비고 사골곰탕", "비비고 왕교자",
-  "스팸 클래식 200g", "스팸 클래식 340g", "오뚜기밥 210g",
-  "조선호텔 2.5kg", "조선호텔 4kg", "조선호텔 8kg",
-  "크리넥스 3겹 25m", "크리넥스 3겹 30m",
-  "펩시 제로 210ml", "펩시 제로 245ml", "펩시제로 500ml",
-  "햇반 210g",
-];
-
-function matchKeyword(title) {
-  if (!title) return null;
-  return TRACK_KEYWORDS.find(kw => title.includes(kw)) || null;
-}
 
 function calcGrade(currentPrice, minPrice, avgPrice) {
   if (!currentPrice || !minPrice || !avgPrice || currentPrice <= 0) return null;
@@ -76,13 +63,17 @@ export default function Home() {
       try {
         const { data, error } = await supabase
           .from('price_history')
-          .select('title, price_num')
+          // ✨ [수정] title 대신 matched_keyword를 가져오도록 변경
+          .select('matched_keyword, price_num') 
           .gt('price_num', 0);
         if (error || !data) return;
+        
         const grouped = {};
         data.forEach(row => {
-          const kw = matchKeyword(row.title);
-          if (!kw) return;
+          // ✨ [수정] DB에 저장된 제미나이 정답표를 그대로 사용
+          const kw = row.matched_keyword; 
+          if (!kw) return; // 키워드가 없으면(None) 패스
+          
           if (!grouped[kw]) grouped[kw] = [];
           grouped[kw].push(row.price_num);
         });
@@ -163,10 +154,13 @@ const gradeBadge = {
   };
 
   function getDealGrade(deal) {
-    const kw = matchKeyword(deal.title);
-    if (!kw) return null;
+    // ✨ [수정] 제미나이가 DB에 적어둔 정답을 바로 꺼내 씁니다!
+    const kw = deal.matched_keyword; 
+    
+    if (!kw) return null; // AI가 이 상품은 추적 대상이 아니라고 했으면 뱃지 안 띄움
+    
     const stat = priceStats[kw];
-    if (!stat) return null;
+    if (!stat) return null; // 아직 과거 통계 데이터가 3개 이상 안 쌓였으면 안 띄움
     // price_num 컬럼 없으므로 price 텍스트에서 숫자 추출
     let currentPrice = 0;
     if (deal.price) {
@@ -181,10 +175,7 @@ const gradeBadge = {
     <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10">
       {/* 헤더 */}
       <header className="bg-white border-b p-4 sticky top-0 z-10 shadow-sm flex items-center gap-3">
-        <a href="https://www.ssagesage.com/" className="flex items-center gap-2">
-          <img src="/crab-icon.png" alt="crab" className="w-6 h-6" />
-          <h1 className="text-lg font-bold text-gray-800">싸게사게</h1>
-        </a>
+        <h1 className="text-lg font-bold text-gray-800">싸게사게 🦀</h1>
         {/* 세로 구분선 */}
         <div className="w-px h-5 bg-gray-200"></div>
 

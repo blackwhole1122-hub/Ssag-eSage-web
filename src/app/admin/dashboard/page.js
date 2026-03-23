@@ -86,10 +86,7 @@ export default function AdminDashboard() {
       {/* 헤더 */}
       <header className="bg-white border-b p-4 sticky top-0 z-10 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <a href="https://www.ssagesage.com/" className="flex items-center gap-2">
-            <img src="/crab-icon.png" alt="crab" className="w-6 h-6" />
-            <h1 className="text-lg font-bold text-gray-800">싸게사게</h1>
-          </a>
+          <h1 className="text-lg font-bold text-gray-800">싸게사게 🦀</h1>
           <div className="w-px h-5 bg-gray-200"></div>
           <span className="text-sm text-gray-500">어드민</span>
         </div>

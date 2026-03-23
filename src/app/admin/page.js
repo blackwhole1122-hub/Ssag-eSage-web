@@ -33,11 +33,8 @@ export default function AdminLogin() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-sm">
 
         {/* 로고 */}
-        <div className="text-center mb-8 flex flex-col items-center gap-2">
-          <a href="https://www.ssagesage.com/" className="flex flex-col items-center gap-2">
-            <img src="/crab-icon.png" alt="crab" className="w-10 h-10" />
-            <h1 className="text-xl font-bold text-gray-800">싸게사게</h1>
-          </a>
+        <div className="text-center mb-8">
+          <h1 className="text-xl font-bold text-gray-800">싸게사게 🦀</h1>
           <p className="text-sm text-gray-400 mt-1">어드민 로그인</p>
         </div>
 
