@@ -32,12 +32,13 @@ export default function AdminLogin() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-sm">
 
-        {/* 로고 */}
+        {/* 로고 부분 */}
         <div className="text-center mb-8">
-          <h1 className="text-xl font-bold text-gray-800">싸게사게 💸</h1>
-          <p className="text-sm text-gray-400 mt-1">어드민 로그인</p>
-        </div>
-
+          <a href="https://www.ssagesage.com/">
+            <h1 className="text-xl font-bold text-gray-800">싸게사게 🦀</h1>
+          </a>
+        </div> {/* 👈 이 닫는 태그가 꼭 있어야 합니다! */}
+         
         {/* 로그인 폼 */}
         <form onSubmit={handleLogin} className="flex flex-col gap-4">
           <div>

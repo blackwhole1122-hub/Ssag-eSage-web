@@ -100,7 +100,7 @@ export default function AdminBlogPage() {
     <div className="max-w-4xl mx-auto bg-gray-100 min-h-screen pb-10">
       <header className="bg-white border-b p-4 sticky top-0 z-10 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <a href="/admin/dashboard" className="text-lg font-bold text-gray-800">싸게사게 💸</a>
+          <a href="https://www.ssagesage.com/" className="text-lg font-bold text-gray-800">싸게사게 🦀</a>
           <div className="w-px h-5 bg-gray-200"></div>
           <span className="text-sm text-gray-500">블로그 관리</span>
         </div>

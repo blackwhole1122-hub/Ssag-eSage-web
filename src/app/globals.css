@@ -1,35 +1,16 @@
-@import "tailwindcss";
+@import "tailwindcss"; /* ✨ 무조건 1번 줄! 딱 한 번만! */
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
+/* Tailwind v4 스타일 변수 설정 */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 body {

@@ -2,6 +2,37 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { KEYWORD_GROUPS } from '@/lib/keywords';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale, LinearScale,
+  PointElement, LineElement,
+  Title, Tooltip, Legend
+} from 'chart.js';
+
+function calcGrade(currentPrice, minPrice, avgPrice) {
+  if (!currentPrice || !minPrice || !avgPrice || currentPrice <= 0) return null;
+  const ratioToMin = (currentPrice - minPrice) / minPrice * 100;
+  const ratioToAvg = (avgPrice - currentPrice) / avgPrice * 100;
+  if (ratioToMin <= 5  && ratioToAvg >= 20) return "역대급";
+  if (ratioToMin <= 15 || ratioToAvg >= 10) return "대박";
+  if (ratioToMin <= 30 || ratioToAvg >= 0)  return "중박";
+  return "평범";
+}
+
+const gradeBadge = {
+  "역대급": "bg-purple-500 text-purple-100",
+  "대박":   "bg-red-500 text-red-100",
+  "중박":   "bg-orange-400 text-orange-100",
+  "평범":   "bg-gray-400 text-gray-100",
+};
+
+ChartJS.register(
+  CategoryScale, LinearScale,
+  PointElement, LineElement,
+  Title, Tooltip, Legend
+);
 
 export default function DealDetail() {
   const { id } = useParams();
@@ -9,6 +40,8 @@ export default function DealDetail() {
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [buyUrl, setBuyUrl] = useState(null);
+  const [chartData, setChartData] = useState(null);
+  const [dynamicGrade, setDynamicGrade] = useState(null);
 
   const sourceLabel = {
     dogdrip: "개미집", fmkorea: "에펨코리아", arca: "아카라이브",
@@ -32,13 +65,21 @@ export default function DealDetail() {
   }, [id]);
 
   // 2. deal 가져온 후 쿠팡 링크 변환
+  // ★ shop_url 또는 url에 "coupang" 문자열이 포함된 경우 무조건 파트너스 링크로 변환
   useEffect(() => {
     async function convertLink() {
       const shopUrl = deal?.shop_url || deal?.url;
-      if (!shopUrl?.includes('coupang.com')) {
+      if (!shopUrl) {
+        setBuyUrl(deal?.url || '');
+        return;
+      }
+
+      // "coupang" 포함 여부로 판단 (coupang.com, link.coupang.com, cp.ee 등 모두 처리)
+      if (!shopUrl.includes('coupang')) {
         setBuyUrl(shopUrl);
         return;
       }
+
       try {
         const res = await fetch(`/api/coupang?url=${encodeURIComponent(shopUrl)}`);
         const data = await res.json();
@@ -49,6 +90,104 @@ export default function DealDetail() {
     }
     if (deal) convertLink();
   }, [deal]);
+
+  useEffect(() => {
+    async function fetchGraphData() {
+      if (!deal) return;
+
+      const allGroups = Object.values(KEYWORD_GROUPS).flat();
+      let kw = deal.matched_keyword;
+      
+      if (!kw) {
+        for (const group of allGroups) {
+          const isMatch = group.keywords.some(k => {
+            const normalizedTitle = deal.title?.replace(/\s/g, '') || "";
+            return k.split(' ').every(word => 
+              deal.title?.includes(word) || normalizedTitle.includes(word.replace(/\s/g, ''))
+            );
+          });
+          if (isMatch) { kw = group.keywords[0]; break; }
+        }
+      }
+
+      if (!kw) return; 
+
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+      const { data, error } = await supabase
+        .from('price_history')
+        .select('price_num, crawled_at, matched_keyword, title')
+        .gt('price_num', 0)
+        .gte('crawled_at', oneYearAgo.toISOString()) // ✨ 1년 전 날짜보다 최근인 것만 싹 다 가져오기!
+        .order('crawled_at', { ascending: false });
+
+      if (error || !data) return;
+
+      const history = [];
+      data.forEach(row => {
+        let rowKw = row.matched_keyword;
+        if (!rowKw) {
+          const matchGroup = allGroups.find(g => g.keywords[0] === kw);
+          if (matchGroup) {
+             const isMatch = matchGroup.keywords.some(k => {
+               const normTitle = row.title?.replace(/\s/g, '') || "";
+               return k.split(' ').every(word => row.title?.includes(word) || normTitle.includes(word.replace(/\s/g, '')));
+             });
+             if (isMatch) rowKw = kw;
+          }
+        }
+        if (rowKw === kw) {
+          history.push({
+            date: row.crawled_at?.slice(5, 10),
+            price: row.price_num
+          });
+        }
+      });
+
+      if (history.length === 0) return;
+
+      history.reverse();
+      const uniqueHistory = [];
+      const seenDates = new Set();
+      history.forEach(h => {
+        if (!seenDates.has(h.date)) {
+          seenDates.add(h.date);
+          uniqueHistory.push(h);
+        }
+      });
+
+      // ✨ [여기서부터 추가!] 차트를 그리기 전에, 모아둔 과거 가격으로 등급을 계산합니다.
+      if (uniqueHistory.length >= 3) {
+        const prices = uniqueHistory.map(h => h.price);
+        const minPrice = Math.min(...prices);
+        const avgPrice = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+        
+        const nums = deal.price?.replace(/[^\d]/g, '') || "0";
+        const currentPrice = parseInt(nums);
+        
+        if (currentPrice > 0) {
+          const grade = calcGrade(currentPrice, minPrice, avgPrice);
+          setDynamicGrade(grade);
+        }
+      }
+
+      setChartData({
+        labels: uniqueHistory.map(h => h.date),
+        datasets: [{
+          label: kw,
+          data: uniqueHistory.map(h => h.price),
+          borderColor: '#EF9F27',
+          backgroundColor: '#EF9F2720',
+          tension: 0.3,
+          pointRadius: 4,
+        }]
+      });
+    }
+
+    fetchGraphData();
+  }, [deal]);
+  // ✨ [여기까지 추가 끝!]
 
   if (loading) return (
     <div className="max-w-2xl mx-auto min-h-screen flex items-center justify-center text-gray-400 text-sm">
@@ -62,16 +201,35 @@ export default function DealDetail() {
     </div>
   );
 
-  const isCoupang = (deal?.shop_url || deal?.url)?.includes('coupang.com');
+  const rawUrl = deal?.shop_url || deal?.url || '';
+  const isCoupang = rawUrl.includes('coupang');
+
+  // ✨ VIP 문지기: keywords.js 명단에 있는 상품인지 검사
+  const allTrackedKeywords = Object.values(KEYWORD_GROUPS).flat().flatMap(g => g.keywords);
+  let isTracked = false;
+  
+  if (deal.matched_keyword && allTrackedKeywords.includes(deal.matched_keyword)) {
+    isTracked = true;
+  } else {
+    isTracked = allTrackedKeywords.some(k => {
+      const normalizedTitle = deal.title?.replace(/\s/g, '') || "";
+      return k.split(' ').every(word => 
+        deal.title?.includes(word) || normalizedTitle.includes(word.replace(/\s/g, ''))
+      );
+    });
+  }
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10">
 
-      {/* 헤더 */}
+      {/* 헤더: 메인 페이지로 이동 */}
       <header className="bg-white border-b p-4 sticky top-0 z-10 shadow-sm flex items-center gap-3">
         <button
-          onClick={() => router.back()}
-          className="text-gray-400 hover:text-gray-600 text-xl"
+          onClick={() => {
+            // 브라우저 뒤로가기 대신 무조건 메인 주소로 이동
+            router.push('/');
+          }}
+          className="text-gray-400 hover:text-gray-600 text-xl px-1"
         >
           ←
         </button>
@@ -83,14 +241,16 @@ export default function DealDetail() {
         {/* 핵심 정보 카드 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full
-              ${deal.grade === '역대급' ? 'bg-purple-500 text-purple-100' :
-                deal.grade === '대박'   ? 'bg-red-500 text-red-100' :
-                deal.grade === '중박'   ? 'bg-orange-400 text-orange-100' :
-                deal.grade === '평범'   ? 'bg-gray-400 text-gray-100' :
-                'bg-red-500 text-red-100'}`}>
-              {deal.grade || '대박'}
-            </span>
+            
+            {/* ✨ isTracked가 true(명단에 있음)일 때만 뱃지를 보여줌 */}
+            {isTracked && (
+              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                dynamicGrade ? gradeBadge[dynamicGrade] : 'bg-red-500 text-red-100'
+              }`}>
+                {dynamicGrade || '핫딜'} 
+              </span>
+            )}
+            
             <span className="text-xs font-bold text-blue-500">
               {sourceLabel[deal.source] || deal.source}
             </span>
@@ -161,10 +321,16 @@ export default function DealDetail() {
 
         {/* 가격 추이 그래프 자리 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <h3 className="text-sm font-bold text-gray-700 mb-3">📈 가격 추이</h3>
-          <div className="h-24 flex items-center justify-center bg-gray-50 rounded-xl">
-            <p className="text-xs text-gray-400">가격 데이터가 쌓이면 그래프가 표시돼요</p>
-          </div>
+          <h3 className="text-sm font-bold text-gray-700 mb-3">📈 가격 추이 (최근 1년)</h3>
+          {chartData ? (
+            <div className="w-full">
+              <Line data={chartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
+            </div>
+          ) : (
+            <div className="h-24 flex items-center justify-center bg-gray-50 rounded-xl">
+              <p className="text-xs text-gray-400">가격 데이터 수집 중... ⏳</p>
+            </div>
+          )}
         </div>
 
         {/* 구매하기 버튼 */}

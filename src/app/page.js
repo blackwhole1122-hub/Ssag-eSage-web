@@ -1,20 +1,8 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
+import { KEYWORD_GROUPS } from '@/lib/keywords';
 
-const TRACK_KEYWORDS = [
-  "동원비안나", "동원참치", "비비고 사골곰탕", "비비고 왕교자",
-  "스팸 클래식 200g", "스팸 클래식 340g", "오뚜기밥 210g",
-  "조선호텔 2.5kg", "조선호텔 4kg", "조선호텔 8kg",
-  "크리넥스 3겹 25m", "크리넥스 3겹 30m",
-  "펩시 제로 210ml", "펩시 제로 245ml", "펩시제로 500ml",
-  "햇반 210g",
-];
-
-function matchKeyword(title) {
-  if (!title) return null;
-  return TRACK_KEYWORDS.find(kw => title.includes(kw)) || null;
-}
 
 function calcGrade(currentPrice, minPrice, avgPrice) {
   if (!currentPrice || !minPrice || !avgPrice || currentPrice <= 0) return null;
@@ -25,6 +13,7 @@ function calcGrade(currentPrice, minPrice, avgPrice) {
   if (ratioToMin <= 30 || ratioToAvg >= 0)  return "중박";
   return "평범";
 }
+
 
 export default function Home() {
   const [category, setCategory] = useState("전체");
@@ -71,28 +60,66 @@ export default function Home() {
     else setLoadingMore(false);
   }, [sourceFilter, searchQuery]);
 
-  useEffect(() => {
+useEffect(() => {
     async function fetchPriceStats() {
       try {
+        // ✨ [일치 1] 최근 1년치 기준 잡기
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
         const { data, error } = await supabase
           .from('price_history')
-          .select('title, price_num')
-          .gt('price_num', 0);
+          .select('title, matched_keyword, price_num, crawled_at') // crawled_at 필수!
+          .gt('price_num', 0)
+          .gte('crawled_at', oneYearAgo.toISOString()) // 1년치 필터 적용
+          .order('crawled_at', { ascending: false });
+
         if (error || !data) return;
+        
         const grouped = {};
+        const allGroups = Object.values(KEYWORD_GROUPS).flat(); 
+
         data.forEach(row => {
-          const kw = matchKeyword(row.title);
-          if (!kw) return;
+          let kw = row.matched_keyword; 
+          
+          if (!kw) {
+            for (const group of allGroups) {
+              const isMatch = group.keywords.some(k => {
+                const normalizedTitle = row.title?.replace(/\s/g, '') || "";
+                return k.split(' ').every(word => 
+                  row.title?.includes(word) || normalizedTitle.includes(word.replace(/\s/g, ''))
+                );
+              });
+              if (isMatch) { kw = group.keywords[0]; break; }
+            }
+          }
+          
+          if (!kw) return; 
+          
           if (!grouped[kw]) grouped[kw] = [];
-          grouped[kw].push(row.price_num);
+          // ✨ 날짜 정보까지 같이 저장
+          grouped[kw].push({ date: row.crawled_at?.slice(5, 10), price: row.price_num });
         });
+
         const stats = {};
-        Object.entries(grouped).forEach(([kw, prices]) => {
-          if (prices.length < 3) return;
-          const minPrice = Math.min(...prices);
-          const avgPrice = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
-          stats[kw] = { minPrice, avgPrice, count: prices.length };
+        Object.entries(grouped).forEach(([kw, items]) => {
+          
+          // ✨ [일치 2] 상세페이지처럼 하루에 1개씩만 남기기 (중복 제거)
+          const uniquePrices = [];
+          const seenDates = new Set();
+          items.forEach(item => {
+            if (!seenDates.has(item.date)) {
+              seenDates.add(item.date);
+              uniquePrices.push(item.price);
+            }
+          });
+
+          if (uniquePrices.length < 3) return; 
+          const minPrice = Math.min(...uniquePrices);
+          const avgPrice = Math.round(uniquePrices.reduce((a, b) => a + b, 0) / uniquePrices.length);
+          stats[kw] = { minPrice, avgPrice, count: uniquePrices.length };
         });
+        
         setPriceStats(stats);
       } catch (e) {
         console.error('가격 통계 불러오기 실패:', e);
@@ -162,26 +189,48 @@ const gradeBadge = {
     "평범":   "bg-gray-400 text-gray-100",
   };
 
-  function getDealGrade(deal) {
-    const kw = matchKeyword(deal.title);
-    if (!kw) return null;
-    const stat = priceStats[kw];
-    if (!stat) return null;
-    // price_num 컬럼 없으므로 price 텍스트에서 숫자 추출
-    let currentPrice = 0;
-    if (deal.price) {
-      const nums = deal.price.replace(/[^\d]/g, '');
-      currentPrice = nums ? parseInt(nums) : 0;
+// ✨ 완벽한 형태의 함수로 묶어줍니다
+function getDealGrade(deal) {
+  // 1. AI가 매칭한 키워드가 있는지 확인
+  let kw = deal.matched_keyword;
+
+  // 2. ✨ [지능형 매칭 업그레이드] 오타(벤엔)를 정답(벤앤)으로 번역!
+  if (!kw) {
+    const allGroups = Object.values(KEYWORD_GROUPS).flat(); // keywords.js 사전 가져오기
+    
+    for (const group of allGroups) {
+      const isMatch = group.keywords.some(k => {
+        const normalizedTitle = deal.title?.replace(/\s/g, '') || "";
+        return k.split(' ').every(word => 
+          deal.title?.includes(word) || normalizedTitle.includes(word.replace(/\s/g, ''))
+        );
+      });
+      
+      if (isMatch) {
+        // 💡 오타('벤엔')로 찾았어도, 통계를 찾기 위해 무조건 첫 번째 대표 단어('벤앤')로 강제 변환!
+        kw = group.keywords[0]; 
+        break;
+      }
     }
-    if (!currentPrice) return null;
-    return calcGrade(currentPrice, stat.minPrice, stat.avgPrice);
   }
+
+  // 3. 통계 데이터가 없으면 뱃지 패스
+  if (!kw || !priceStats[kw]) return null;
+  const stat = priceStats[kw];
+
+  // 4. 가격 추출 및 최종 등급 계산
+  const nums = deal.price?.replace(/[^\d]/g, '') || "0";
+  const currentPrice = parseInt(nums);
+  if (currentPrice <= 0) return null;
+
+  return calcGrade(currentPrice, stat.minPrice, stat.avgPrice);
+}
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10">
       {/* 헤더 */}
       <header className="bg-white border-b p-4 sticky top-0 z-10 shadow-sm flex items-center gap-3">
-        <h1 className="text-lg font-bold text-gray-800">싸게사게 💸</h1>
+        <a href="https://www.ssagesage.com/"><h1 className="text-lg font-bold text-gray-800">싸게사게 🦀</h1></a>
         {/* 세로 구분선 */}
         <div className="w-px h-5 bg-gray-200"></div>
 
