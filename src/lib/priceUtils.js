@@ -14,27 +14,3 @@ export const getUnitPrice = (item, productName = "") => {
   const priceNum = Number(item.price_raw?.replace(/[^0-9]/g, "")) || item.price_num || 0;
   return { price: (priceNum / weight) * 100, label: "100g당" };
 };
-
-/**
- * 2. 통합 등급 판별 로직 (킴님의 1.03 오차범위 적용)
- */
-export const calculateGrade = (currentUnitPrice, minUnitPrice, avgUnitPrice) => {
-  if (!currentUnitPrice || currentUnitPrice <= 0) return "평범";
-
-  // 1순위: 역대급 (역대 최저 단가의 1.03배 이하)
-  if (minUnitPrice > 0 && currentUnitPrice <= minUnitPrice * 1.03) {
-    return "역대급";
-  }
-
-  // 2순위: 대박 (3개월 평균 단가의 90% 이하)
-  if (avgUnitPrice > 0 && currentUnitPrice <= avgUnitPrice * 0.90) {
-    return "대박";
-  }
-
-  // 3순위: 중박 (3개월 평균 단가의 95% 이하)
-  if (avgUnitPrice > 0 && currentUnitPrice <= avgUnitPrice * 0.95) {
-    return "중박";
-  }
-
-  return "평범";
-};

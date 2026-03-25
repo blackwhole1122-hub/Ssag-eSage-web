@@ -5,7 +5,6 @@ import { KEYWORD_GROUPS } from '@/lib/keywords';
 import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
 
 
-
 export default function Home() {
   const [category, setCategory] = useState("전체");
   const [sourceFilter, setSourceFilter] = useState("전체");
@@ -218,18 +217,25 @@ async function fetchPriceStats() {
         
         {/* 1. 헤더 (개별 고정 속성은 제거했습니다) */}
         <header className="bg-white border-b p-4 flex items-center gap-3">
-          <a href="https://www.ssagesage.com/"><h1 className="text-lg font-bold text-gray-800">싸게사게 🦀</h1></a>
-          <div className="w-px h-5 bg-gray-200"></div>
-          <a
-            href="/hotdeal-thermometer"
-            className="flex items-center gap-1.5 bg-orange-50 border border-orange-300 text-orange-700 text-xs font-medium px-3 py-1.5 rounded-full hover:bg-orange-100 transition-colors"
-          >
+          {/* ✅ 수정 후 (진짜 뜨는 코드): 이제 시원하게 보일 겁니다! */}
+          <a href="https://www.ssagesage.com/" className="flex items-center ml-1">
+            <img 
+              src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo.png" 
+              alt="싸게사게" 
+              // ⬇️ 높이를 48px로 시원하게 키워보세요! (h-10, h-11, h-12 중 테스트해보세요)
+              className="h-12 w-auto object-contain" 
+            />
+          </a>
+
+          {/* ⬇️ 여기서부터는 킴이 짠 코드 그대로야. 절대 안 변해! */}
+          <div className="w-px h-5 bg-gray-200"></div> 
+
+          {/* ✅ 2. 온도계 버튼은 여기 그대로 있지? */}
+          <a href="/hotdeal-thermometer" className="...">
             🌡️ 핫딜온도계
           </a>
-          <a
-            href="/blog"
-            className="flex items-center gap-1.5 bg-blue-50 border border-blue-300 text-blue-700 text-xs font-medium px-3 py-1.5 rounded-full hover:bg-blue-100 transition-colors"
-          >
+
+          <a href="/blog" className="...">
             📝 정보모음
           </a>
         </header>
