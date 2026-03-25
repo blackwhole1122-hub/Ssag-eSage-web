@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { KEYWORD_GROUPS } from '@/lib/keywords';
-import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
+import { getUnitPrice } from '@/lib/priceUtils';
 
 
 export default function Home() {
