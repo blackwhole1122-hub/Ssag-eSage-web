@@ -2,8 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { KEYWORD_GROUPS } from '@/lib/keywords';
-import { getUnitPrice } from '@/lib/priceUtils';
-
+import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
 
 export default function Home() {
   const [category, setCategory] = useState("전체");
@@ -18,6 +17,7 @@ export default function Home() {
   const [priceStats, setPriceStats] = useState({});
   const observerRef = useRef(null);
 
+  // 1. 핫딜 목록 페칭 함수
   const fetchDeals = useCallback(async (pageNum = 0, reset = false) => {
     if (pageNum === 0) setLoading(true);
     else setLoadingMore(true);
@@ -31,18 +31,26 @@ export default function Home() {
       .order('crawled_at', { ascending: false })
       .range(from, to);
 
-    if (sourceFilter !== "전체") {
-      query = query.eq('source', sourceFilter);
-    }
-    if (searchQuery) {
-      query = query.ilike('title', `%${searchQuery}%`);
-    }
+    if (sourceFilter !== "전체") query = query.eq('source', sourceFilter);
+    if (searchQuery) query = query.ilike('title', `%${searchQuery}%`);
 
     const { data, error } = await query;
 
-    if (error) console.error('데이터 불러오기 실패:', error);
-    else {
-      setAllDeals(prev => reset ? (data || []) : [...prev, ...(data || [])]);
+    if (error) {
+      console.error('데이터 불러오기 실패:', error);
+    } else {
+      setAllDeals(prev => {
+        const newData = data || [];
+        if (reset) return newData;
+
+        // 🔥 [핵심] 중복 제거 로직 추가
+        // 기존 데이터(prev)와 새 데이터(newData)를 합친 후 ID 기준으로 중복을 걸러냅니다.
+        const combined = [...prev, ...newData];
+        const uniqueData = combined.filter((item, index, self) =>
+          index === self.findIndex((t) => t.id === item.id)
+        );
+        return uniqueData;
+      });
       setHasMore((data || []).length === 20);
     }
 
@@ -50,89 +58,33 @@ export default function Home() {
     else setLoadingMore(false);
   }, [sourceFilter, searchQuery]);
 
+  // 2. 기준 통계 데이터 로드 및 초기 페칭
   useEffect(() => {
-    // ✅ useEffect 내부의 fetchPriceStats 함수를 이 코드로 교체하세요.
-async function fetchPriceStats() {
-  try {
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    async function fetchBenchmarks() {
+      try {
+        const { data, error } = await supabase
+          .from('price_benchmarks')
+          .select('slug, ref_low, ref_avg');
 
-    const { data, error } = await supabase
-      .from('price_history')
-      .select('price_num, price_raw, crawled_at, matched_keyword, title, price_per_100g, price_per_100ml, price_per_unit') // ✅ 모든 단가 컬럼 가져오기
-      .gt('price_num', 0) 
-      .gte('crawled_at', threeMonthsAgo.toISOString())
-      .order('crawled_at', { ascending: false }) 
-      .limit(5000);
+        if (error) throw error;
 
-    if (error || !data) return;
-    
-    const grouped = {};
-    const allGroups = Object.values(KEYWORD_GROUPS).flat(); 
-
-    data.forEach(row => {
-      // 1. 키워드 매칭
-      let kw = row.matched_keyword;
-      if (!kw) {
-         const matchGroup = allGroups.find(g =>
-            g.keywords.some(k => {
-               const normTitle = row.title?.replace(/\s/g, '') || "";
-               return k.split(' ').every(w => row.title?.includes(w) || normTitle.includes(w.replace(/\s/g, '')));
-            })
-         );
-         if (matchGroup) kw = matchGroup.keywords[0];
+        const benchmarkMap = {};
+        data.forEach(item => {
+          benchmarkMap[item.slug] = item;
+        });
+        setPriceStats(benchmarkMap); 
+      } catch (e) {
+        console.error('기준가 불러오기 실패:', e);
       }
-      if (!kw) return;
-
-      // 🌟 2. 단가 로직 적용 (판매가가 아닌 단가를 통계에 넣음)
-      const { price: unitPrice } = getUnitPrice(row, row.title);
-      
-      // 날짜 안전하게 가져오기
-      const dateKey = row.crawled_at ? row.crawled_at.slice(5, 10) : "00-00";
-
-      if (!grouped[kw]) grouped[kw] = [];
-      if (unitPrice && !isNaN(unitPrice)) {
-        grouped[kw].push({ date: dateKey, price: unitPrice });
-      }
-    });
-
-    const stats = {};
-    Object.entries(grouped).forEach(([kw, items]) => {
-      const uniquePrices = [];
-      const seenDates = new Set();
-      
-      // 날짜별로 중복 제거 (하루에 여러 데이터 있으면 하나만)
-      items.forEach(item => {
-        if (!seenDates.has(item.date)) {
-          seenDates.add(item.date);
-          uniquePrices.push(item.price);
-        }
-      });
-
-      if (uniquePrices.length === 0) return; 
-
-      // 3. 통계 계산 (NaN 방지 처리)
-      const minPrice = Math.min(...uniquePrices);
-      const avgPrice = Math.round(uniquePrices.reduce((a, b) => a + b, 0) / uniquePrices.length);
-      
-      stats[kw] = { minPrice, avgPrice, count: uniquePrices.length };
-    });
-    
-    setPriceStats(stats);
-  } catch (e) {
-    console.error('가격 통계 불러오기 실패:', e);
-  }
-}
+    }
 
     fetchDeals(0, true);
-    fetchPriceStats();
+    fetchBenchmarks();
   }, [fetchDeals]);
 
-  // 필터 변경시 초기화
+  // 필터 변경 시 초기화
   useEffect(() => {
-    setAllDeals([]);
     setPage(0);
-    setHasMore(true);
     fetchDeals(0, true);
   }, [sourceFilter, searchQuery, fetchDeals]);
 
@@ -140,28 +92,31 @@ async function fetchPriceStats() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
+        // loadingMore가 true일 때는 아예 실행되지 않도록 막기
         if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          const nextPage = page + 1;
-          setPage(nextPage);
-          fetchDeals(nextPage);
+          setPage(prev => {
+            const nextPage = prev + 1;
+            fetchDeals(nextPage);
+            return nextPage;
+          });
         }
       },
       { threshold: 0.5 }
     );
     if (observerRef.current) observer.observe(observerRef.current);
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, loading, page, fetchDeals]);
+  }, [hasMore, loadingMore, loading, fetchDeals]);
 
-  // 카테고리 키워드 매핑
+  // 카테고리/소스 설정 데이터
   const categoryKeywords = {
-    "식품":    ["식품", "먹거리", "음식", "건강", "생활/식품"],
+    "식품": ["식품", "먹거리", "음식", "건강", "생활/식품"],
     "생활잡화": ["생활", "잡화", "생활용품", "자동차"],
-    "게임":    ["게임", "게임S/W", "게임H/W"],
-    "PC":     ["PC", "컴퓨터", "노트북", "하드웨어", "디지털"],
-    "가전":    ["가전", "전자", "TV", "A/V", "전자/IT"],
-    "의류":    ["의류", "패션", "잡화"],
-    "화장품":  ["화장품", "뷰티"],
-    "기타":    ["기타", "상품권", "취미", "여행"],
+    "게임": ["게임", "게임S/W", "게임H/W"],
+    "PC": ["PC", "컴퓨터", "노트북", "하드웨어", "디지털"],
+    "가전": ["가전", "전자", "TV", "A/V", "전자/IT"],
+    "의류": ["의류", "패션", "잡화"],
+    "화장품": ["화장품", "뷰티"],
+    "기타": ["기타", "상품권", "취미", "여행"],
   };
 
   const categories = ["전체", "식품", "생활잡화", "게임", "PC", "가전", "의류", "화장품", "기타"];
@@ -178,66 +133,84 @@ async function fetchPriceStats() {
   });
 
   const gradeBadge = {
-    "역대급": "bg-purple-500 text-purple-100",
-    "대박":   "bg-red-500 text-red-100",
-    "중박":   "bg-orange-400 text-orange-100",
-    "평범":   "bg-gray-400 text-gray-100",
+    "역대급": "bg-purple-600 text-white font-bold",
+    "대박": "bg-red-500 text-white font-bold",
+    "중박": "bg-orange-400 text-white",
+    "평범": "bg-gray-400 text-white",
+    "구매금지": "bg-black text-white",
   };
 
+  // 등급 계산기
   const getDealGrade = (deal) => {
-    let kw = deal.matched_keyword;
-    if (!kw) {
-       const allGroups = Object.values(KEYWORD_GROUPS).flat();
-       const matchGroup = allGroups.find(g => g.keywords.some(k => {
-           const normTitle = deal.title?.replace(/\s/g, '') || "";
-           return k.split(' ').every(w => deal.title?.includes(w) || normTitle.includes(w.replace(/\s/g, '')));
-       }));
-       if (matchGroup) kw = matchGroup.keywords[0];
+    let matchedSlug = deal.group_slug;
+    if (!matchedSlug) {
+      const allGroups = Object.values(KEYWORD_GROUPS).flat();
+      const matchGroup = allGroups.find(g => g.keywords.some(k => {
+        const normTitle = deal.title?.replace(/\s/g, '') || "";
+        return k.split(' ').every(w => deal.title?.includes(w) || normTitle.includes(w.replace(/\s/g, '')));
+      }));
+      if (matchGroup) matchedSlug = matchGroup.slug;
     }
-    if (!kw || !priceStats[kw]) return null;
-    
-    const stat = priceStats[kw];
-    const currentPriceRaw = parseInt(deal.price?.replace(/[^\d]/g, '') || "0");
 
-    // ✅ 현재 핫딜의 판매가를 단가로 변환
-    const { price: currentUnitPrice } = getUnitPrice({ price_num: currentPriceRaw }, deal.title);
+    const benchmark = priceStats[matchedSlug];
+    if (!benchmark) return null;
+
+    const currentPriceRaw = parseInt(deal.price?.replace(/[^\d]/g, '') || "0");
+    const { price: currentUnitPrice, label: unitLabel } = getUnitPrice({ price_num: currentPriceRaw }, deal.title);
 
     if (currentUnitPrice <= 0) return null;
 
-    // ✅ 통합 함수를 사용하여 등급 판별 (역대급 3% 오차 자동 적용)
-    return calculateGrade(currentUnitPrice, stat.minPrice, stat.avgPrice);
+    const grade = calculateGrade(currentUnitPrice, benchmark.ref_low, benchmark.ref_avg);
 
+    return { 
+      grade, 
+      unitPrice: currentUnitPrice, 
+      unitLabel, 
+      refAvg: benchmark.ref_avg 
+    };
   };
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10">
       
-      {/* ✨ 여기서부터 전체를 묶어서 상단에 고정합니다 (z-20으로 우선순위 높임) */}
+      {/* 🟢 상단 고정 영역 (헤더 + 검색 + 필터) */}
       <div className="sticky top-0 z-20 shadow-sm">
         
-        {/* 1. 헤더 (개별 고정 속성은 제거했습니다) */}
-        <header className="bg-white border-b p-4 flex items-center gap-3">
-          {/* ✅ 수정 후 (진짜 뜨는 코드): 이제 시원하게 보일 겁니다! */}
-          <a href="https://www.ssagesage.com/" className="flex items-center ml-1">
-            <img 
-              src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo.png" 
-              alt="싸게사게" 
-              // ⬇️ 높이를 48px로 시원하게 키워보세요! (h-10, h-11, h-12 중 테스트해보세요)
-              className="h-12 w-auto object-contain" 
-            />
-          </a>
+        {/* 1. 헤더 */}
+        <header className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
+          <div className="flex items-center gap-3">
+            {/* 1. 싸게사게 (메인 로고, 크기 h-11로 시원하게!) */}
+            <a href="/" className="flex items-center ml-1">
+              <img 
+                src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo.png" 
+                alt="싸게사게" 
+                className="h-11 w-auto object-contain" 
+              />
+            </a>
 
-          {/* ⬇️ 여기서부터는 킴이 짠 코드 그대로야. 절대 안 변해! */}
-          <div className="w-px h-5 bg-gray-200"></div> 
+            {/* 구분선 (두 로고 사이를 깔끔하게 분리) */}
+            <div className="w-px h-5 bg-gray-200 mx-1"></div> 
 
-          {/* ✅ 2. 온도계 버튼은 여기 그대로 있지? */}
-          <a href="/hotdeal-thermometer" className="...">
-            🌡️ 핫딜온도계
-          </a>
+            {/* 2. 메뉴 (핫딜온도계 이미지 + 정보모음 텍스트) */}
+            <nav className="flex items-center gap-4">
+              {/* ✅ 텍스트 대신 'logo2' 이미지를 사용하여 디자인 통일 */}
+              <a href="/hotdeal-thermometer" className="flex items-center opacity-80 hover:opacity-100 transition-opacity">
+                <img 
+                  src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo2.png" 
+                  alt="핫딜온도계" 
+                  // 싸게사게 로고보다 살짝 작게 (h-9) 설정해서 밸런스를 맞췄어
+                  className="h-9 w-auto object-contain" 
+                />
+              </a>
+              {/* 정보모음도 텍스트로 시원하게 (폰트 크기와 색상 조절) */}
+              <a href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
+                정보모음
+              </a>
+            </nav>
+          </div>
 
-          <a href="/blog" className="...">
-            📝 정보모음
-          </a>
+          {/* 우측 상단은 필요하다면 로그인 버튼 등을 넣을 수 있지만, 현재는 공백 */}
+          <div className="md:w-32"></div> 
         </header>
 
         {/* 2. 검색창 */}
@@ -254,9 +227,10 @@ async function fetchPriceStats() {
           </div>
         </div>
 
-        {/* 3. 사이트 필터 탭 */}
+        {/* 3. 사이트 및 카테고리 필터 */}
         <div className="bg-white border-b">
           <div className="flex items-center">
+            {/* 사이트 필터 버튼 */}
             <div className="relative">
               <button
                 onClick={() => setShowSourceFilter(!showSourceFilter)}
@@ -286,6 +260,7 @@ async function fetchPriceStats() {
               )}
             </div>
 
+            {/* 카테고리 탭 (가로 스크롤) */}
             <nav className="flex gap-2 px-2 py-2 overflow-x-auto scrollbar-hide flex-1">
               {categories.map((c) => (
                 <button
@@ -300,34 +275,12 @@ async function fetchPriceStats() {
               ))}
             </nav>
           </div>
-
-          {sourceFilter !== "전체" && (
-            <div className="flex items-center gap-2 px-3 pb-2">
-              <span className="text-xs text-gray-400">커뮤니티:</span>
-              <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
-                {sourceLabel[sourceFilter]}
-              </span>
-              <button
-                onClick={() => setSourceFilter("전체")}
-                className="text-xs text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-          )}
         </div>
-        
       </div> 
-      {/* ✨ 상단 고정 영역 끝 */}
 
-      {/* 핫딜 목록 */}
+      {/* 핫딜 목록 메인 */}
       <main className="p-3 flex flex-col gap-3">
-        {loading && (
-          <div className="text-center py-20 text-gray-400 text-sm">
-            핫딜 불러오는 중... ⏳
-          </div>
-        )}
-
+        {loading && <div className="text-center py-20 text-gray-400 text-sm">핫딜 불러오는 중... ⏳</div>}
         {!loading && filteredDeals.length === 0 && (
           <div className="text-center py-20 text-gray-400 text-sm">
             {searchQuery ? `"${searchQuery}"에 대한 상품이 없어요! 😅` : "핫딜이 없어요 😅"}
@@ -335,109 +288,57 @@ async function fetchPriceStats() {
         )}
 
         {!loading && filteredDeals.map((deal) => {
-          const grade = getDealGrade(deal);
+          const gradeInfo = getDealGrade(deal);
           return (
-            <a
-              key={deal.id}
-              href={`/deal/${deal.id}`}
-              className="relative flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden"
-            >
-              {grade && (
-                <div className={`absolute top-0 left-0 text-xs font-bold px-2.5 py-1 rounded-br-xl ${gradeBadge[grade]}`}>
-                  {grade}
+            <a key={deal.id} href={`/deal/${deal.id}`} className="relative flex items-center gap-3 p-3 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all overflow-hidden">
+              {/* 5단계 등급 배지 */}
+              {gradeInfo?.grade && (
+                <div className={`absolute top-0 left-0 text-[10px] font-bold px-2.5 py-1 rounded-br-xl ${gradeBadge[gradeInfo.grade]}`}>
+                  {gradeInfo.grade}
                 </div>
               )}
-
-              {/* 썸네일 */}
+              
               <div className="w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                {deal.image ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={deal.image}
-                    alt={deal.title}
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      e.target.parentElement.innerHTML = '<div class="w-full h-full flex items-center justify-center text-2xl">🛍️</div>';
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-2xl">🛍️</div>
-                )}
+                <img src={deal.image || '/default-image.png'} alt={deal.title} className="w-full h-full object-cover" />
               </div>
 
-              {/* 내용 */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                  <span className="text-xs font-bold text-blue-500">
-                    {sourceLabel[deal.source] || deal.source}
-                  </span>
-                  {deal.shop && (
-                    <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full">
-                      {deal.shop}
-                    </span>
-                  )}
-                  {deal.category && (
-                    <span className="text-xs text-gray-400">
-                      {deal.category}
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-400 ml-auto">
-                    {new Date(deal.crawled_at).toLocaleString('ko-KR', {
-                      month: 'numeric',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </span>
+                  <span className="text-xs font-bold text-blue-500">{sourceLabel[deal.source] || deal.source}</span>
+                  <span className="text-xs text-gray-400 ml-auto">{new Date(deal.crawled_at).toLocaleDateString()}</span>
                 </div>
-
-                <p className="text-sm font-medium text-gray-800 line-clamp-2 leading-snug mb-2">
-                  {deal.title}
-                </p>
-
-                <div className="flex items-center justify-between">
-                  <p className="text-base font-bold text-red-500">
-                    {deal.price || "가격미정"}
-                  </p>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      navigator.clipboard.writeText(`${window.location.origin}/deal/${deal.id}`);
-                      e.currentTarget.innerText = '✓';
-                      setTimeout(() => e.currentTarget.innerText = '🔗', 1500);
-                    }}
-                    className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-base hover:bg-gray-200 transition-colors flex-shrink-0"
-                  >
-                    🔗
-                  </button>
-                </div>
+                <p className="text-sm font-medium text-gray-800 line-clamp-2 leading-snug mb-2">{deal.title}</p>
+                
+                {/* 🌟 가격 비교 카드 (가장 중요한 부분!) */}
+                {gradeInfo && (
+                  <div className="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-100">
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className="text-blue-700 font-bold">
+                        {gradeInfo.unitLabel} <span className="text-blue-600">{Math.floor(gradeInfo.unitPrice).toLocaleString()}원</span>
+                      </span>
+                      <span className="text-gray-400">어제까지 평균 {Math.floor(gradeInfo.refAvg).toLocaleString()}원</span>
+                    </div>
+                  </div>
+                )}
+                
+                <p className="text-base font-bold text-red-500">{deal.price || "가격미정"}</p>
               </div>
-
-              {/* 화살표 */}
               <span className="text-gray-300 text-xl flex-shrink-0">›</span>
             </a>
           );
         })}
       
-        {/* 무한 스크롤 감지 */}
-        <div ref={observerRef} className="py-4 text-center">
-          {loadingMore && (
-            <span className="text-gray-400 text-sm">더 불러오는 중... ⏳</span>
-          )}
-          {!hasMore && !loading && (
-            <span className="text-gray-300 text-xs">모든 핫딜을 확인했어요 🎉</span>
-          )}
+        {/* 무한스크롤 로더 */}
+        <div ref={observerRef} className="py-10 text-center">
+          {loadingMore && <span className="text-gray-400 text-sm">더 불러오는 중... ⏳</span>}
+          {!hasMore && !loading && <span className="text-gray-300 text-xs">모든 핫딜을 확인했어요 🎉</span>}
         </div>
       </main>
 
       <footer className="text-center p-6 text-gray-400 text-xs">
         © 2026 싸게사게
         <div className="mt-2">
-          <a href="/privacy" className="hover:text-gray-600 transition-colors underline">
-            개인정보처리방침
-          </a>
+          <a href="/privacy" className="hover:text-gray-600 transition-colors underline">개인정보처리방침</a>
         </div>
       </footer>
     </div>

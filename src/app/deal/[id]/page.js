@@ -2,31 +2,79 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { KEYWORD_GROUPS } from '@/lib/keywords';
 import { Line } from 'react-chartjs-2';
-import { getUnitPrice } from '@/lib/priceUtils'; 
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend
 } from 'chart.js';
+// 👇 중복 다 지우고 이렇게 딱 한 줄씩만 남기기!
+import { KEYWORD_GROUPS } from '@/lib/keywords';
+import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
-
 export default function DealDetail() {
   const { id } = useParams();
   const router = useRouter();
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chartData, setChartData] = useState(null);
+  const [dealGrade, setDealGrade] = useState(null); 
+  const [unitPrice, setUnitPrice] = useState(0);
+  const [unitLabel, setUnitLabel] = useState("");
 
   const sourceLabel = {
     dogdrip: "개드립", fmkorea: "에펨코리아", arca: "아카라이브", clien: "클리앙", ppomppu: "뽐뿌", quasarzone: "퀘이사존", zod: "ZOD", ruliweb: "루리웹"
+  };
+
+  const gradeBadge = {
+    "역대급": "bg-purple-600 text-white font-bold",
+    "대박":   "bg-red-500 text-white font-bold",
+    "중박":   "bg-orange-400 text-white",
+    "평범":   "bg-gray-400 text-white",
+    "구매금지": "bg-black text-white",
   };
 
   // 🌟 실수로 지워졌던 가장 중요한 데이터 호출 코드 복구!
   useEffect(() => {
     async function fetchDeal() {
       const { data, error } = await supabase.from('hotdeals').select('*').eq('id', id).single();
-      if (!error) setDeal(data);
+      
+      if (!error && data) {
+        setDeal(data);
+
+        // 👇 여기서부터 등급 계산 로직 추가
+        let matchedSlug = data.group_slug;
+        if (!matchedSlug) {
+          const allGroups = Object.values(KEYWORD_GROUPS).flat();
+          const matchGroup = allGroups.find(g => g.keywords.some(k => {
+            const normTitle = data.title?.replace(/\s/g, '') || "";
+            return k.split(' ').every(w => data.title?.includes(w) || normTitle.includes(w.replace(/\s/g, '')));
+          }));
+          if (matchGroup) matchedSlug = matchGroup.slug;
+        }
+
+        if (matchedSlug) {
+          const currentPriceRaw = parseInt(data.price?.replace(/[^\d]/g, '') || "0");
+          const { price: calcUnitPrice, label: calcUnitLabel } = getUnitPrice({ price_num: currentPriceRaw }, data.title);
+
+          if (calcUnitPrice > 0) {
+            setUnitPrice(calcUnitPrice); 
+            setUnitLabel(calcUnitLabel); // 👈 계산된 라벨(100ml당 등) 저장
+            
+            // 기준가 DB에서 이 상품(slug) 것만 딱 1개 가져오기
+            const { data: benchmark } = await supabase
+              .from('price_benchmarks')
+              .select('ref_low, ref_avg')
+              .eq('slug', matchedSlug)
+              .single();
+
+            if (benchmark) {
+              const grade = calculateGrade(calcUnitPrice, benchmark.ref_low, benchmark.ref_avg);
+              setDealGrade(grade); // 등급 상태 저장
+            }
+          }
+        }
+        // 👆 계산 로직 끝
+      }
       setLoading(false);
     }
     fetchDeal();
@@ -123,9 +171,25 @@ export default function DealDetail() {
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-red-500 text-white">핫딜</span>
             <span className="text-xs font-bold text-blue-500">{sourceLabel[deal.source] || deal.source}</span>
+            {/* 👇 등급 뱃지 추가 */}
+            {dealGrade && (
+              <span className={`text-xs px-2.5 py-1 rounded-full ${gradeBadge[dealGrade]}`}>
+                {dealGrade}
+              </span>
+            )}
           </div>
           <h2 className="text-base font-bold text-gray-800 mb-3">{deal.title}</h2>
-          <p className="text-2xl font-bold text-red-500 mb-1">{deal.price || '가격미정'}</p>
+          
+          <div className="flex flex-col mb-1">
+            <p className="text-2xl font-bold text-red-500">{deal.price || '가격미정'}</p>
+            {/* 👇 단가 추가 */}
+            {unitPrice > 0 && (
+              <p className="text-sm font-medium text-gray-500 mt-1">
+                (단가: {unitLabel} {Math.floor(unitPrice).toLocaleString()}원) 
+                {/* 👆 '1개당' 대신 {unitLabel}을 사용 */}
+              </p>
+            )}
+          </div>
         </div>
 
         {deal.image && (
@@ -154,7 +218,9 @@ export default function DealDetail() {
           )}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t md:static md:bg-transparent md:border-t-0 md:p-0 mt-4">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t md:static md:bg-transparent md:border-t-0 md:p-0 mt-4 flex flex-col gap-2">
+          
+          {/* 1. 메인: 쇼핑몰 이동 버튼 */}
           <a 
             href={`/api/out?url=${encodeURIComponent(deal.shop_url || deal.url)}`}
             target="_blank"
@@ -163,6 +229,28 @@ export default function DealDetail() {
           >
             🛒 쇼핑몰로 이동하여 구매하기
           </a>
+
+          
+
+                {/* ✨ 쿠팡 파트너스 안내 문구 추가 */}
+          {(deal.shop_url?.includes('coupang.com') || deal.url?.includes('coupang.com')) && (
+            <p className="text-[10px] text-gray-400 text-center mt-1 leading-tight">
+              이 포스팅은 쿠팡 파트너스 활동의 일환으로,<br />
+              이에 따른 일정액의 수수료를 제공받습니다.
+            </p>
+          )}
+
+          {/* 원본 게시물 이동 버튼 (기존 회색 버튼) */}
+          {deal.url && (
+            <a 
+              href={`/api/out?url=${encodeURIComponent(deal.url)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block w-full max-w-2xl mx-auto bg-gray-400 hover:bg-gray-500 text-white text-center font-bold text-base py-3 rounded-xl shadow transition-colors mt-2"
+            >
+              📝 원본 커뮤니티 게시물 보기
+            </a>
+          )}
         </div>
       </main>
     </div>

@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { getUnitPrice } from '@/lib/priceUtils';
+// 👇 calculateGrade 추가
+import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
 
 export default function HotdealThermometer() {
   const [activeCategory, setActiveCategory] = useState("전체");
@@ -17,83 +18,75 @@ useEffect(() => {
     async function fetchData() {
       setLoading(true);
       
-      // 1. 데이터 가져오기 (created_at 추가)
-      const { data: groupData } = await supabase.from('keyword_groups').select('*');
-      const { data: activeHotdeals } = await supabase.from('hotdeals').select('*');
-      const { data: historyData } = await supabase
-        .from('price_history')
-        .select('group_slug, price_num, price_raw, crawled_at, created_at, price_per_100g, price_per_100ml, price_per_unit')
-        .order('crawled_at', { ascending: true });
+      try {
+        // 1. 필요한 테이블 3개에서 데이터 딱딱 가져오기
+        // keyword_groups: 기본 그룹 정보
+        // hotdeals: 현재 핫딜가 파악용
+        // price_benchmarks: 매일 업데이트되는 1년 치 기준가 (최저가, 평균가)
+        const [
+          { data: groupData },
+          { data: activeHotdeals },
+          { data: benchmarkData }
+        ] = await Promise.all([
+          supabase.from('keyword_groups').select('*'),
+          supabase.from('hotdeals').select('*'),
+          supabase.from('price_benchmarks').select('*')
+        ]);
 
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-      if (groupData) {
-        const nameMap = {};
-        groupData.forEach(g => { nameMap[g.slug] = g.group_name; });
-
-        // 2. 히스토리 맵 구성 (상세페이지와 동일한 날짜 처리: crawled_at || created_at)
-        const statsMap = {};
-        historyData?.forEach(row => {
-          const { price } = getUnitPrice(row, nameMap[row.group_slug] || "");
-          if (!statsMap[row.group_slug]) statsMap[row.group_slug] = [];
-          statsMap[row.group_slug].push({ 
-            price, 
-            date: row.crawled_at || row.created_at // ← 날짜 로직 통일
+        if (groupData) {
+          // 2. 실시간 최저가 맵 구성 (기존 로직 유지)
+          const realTimePriceMap = {};
+          activeHotdeals?.forEach(deal => {
+            if (!deal.group_name) return;
+            const { price } = getUnitPrice(deal, deal.group_name);
+            const cleanName = deal.group_name.trim();
+            if (price > 0 && (!realTimePriceMap[cleanName] || price < realTimePriceMap[cleanName])) {
+              realTimePriceMap[cleanName] = price;
+            }
           });
-        });
 
-        // 3. 실시간 최저가 맵 구성
-        const realTimePriceMap = {};
-        activeHotdeals?.forEach(deal => {
-          if (!deal.group_name) return;
-          const { price } = getUnitPrice(deal, deal.group_name);
-          const cleanName = deal.group_name.trim();
-          if (!realTimePriceMap[cleanName] || price < realTimePriceMap[cleanName]) {
-            realTimePriceMap[cleanName] = price;
-          }
-        });
+          // 3. 기준가 맵 구성 (DB에서 가져온 값)
+          const benchmarkMap = {};
+          benchmarkData?.forEach(bm => {
+            benchmarkMap[bm.slug] = bm;
+          });
 
-        // 4. 등급 판별 로직 (1년 기준 vs 최근 10개)
-        const enrichedGroups = groupData.map(group => {
-          const cleanGroupName = group.group_name.trim();
-          const allPricesForGroup = statsMap[group.slug] || [];
-          
-          // 상세페이지와 동일한 필터링 기준
-          let referenceData = allPricesForGroup.filter(p => new Date(p.date) >= oneYearAgo);
-          
-          if (referenceData.length < 10 && allPricesForGroup.length > 0) {
-            referenceData = allPricesForGroup.slice(-10);
-          }
+          // 4. 등급 판별 로직 (우리가 만든 calculateGrade 함수 사용!)
+          // 4. 등급 판별 로직 (어제까지의 평균가(ref_avg) 기준)
+          const enrichedGroups = groupData.map(group => {
+            const benchmark = benchmarkMap[group.slug];
+            
+            // 🎯 기준은 오직 "어제까지의 평균가(ref_avg)"
+            const currentUnitPrice = benchmark?.ref_avg || 0;
+            let grade = "분석중";
+            
+            if (benchmark && currentUnitPrice > 0) {
+              // 평균가(현재가)를 최저가와 비교해서 5단계 등급 산출
+              grade = calculateGrade(
+                currentUnitPrice, 
+                benchmark.ref_low, 
+                benchmark.ref_avg
+              );
+            }
 
-          const referencePrices = referenceData.map(d => d.price);
-          const latestHistoryPrice = referencePrices.length > 0 ? referencePrices[referencePrices.length - 1] : 0;
-          const currentUnitPrice = realTimePriceMap[cleanGroupName] || latestHistoryPrice;
+            return { 
+              ...group, 
+              currentPrice: currentUnitPrice, 
+              grade: grade 
+            };
+          });
 
-          let grade = "분석중";
-          let minPrice = 0;
-
-          if (referencePrices.length > 0 && currentUnitPrice > 0) {
-            minPrice = Math.min(...referencePrices);
-            const ratio = currentUnitPrice / minPrice;
-
-            if (ratio <= 1.0) grade = "역대급";
-              else if (ratio <= 1.08) grade = "대박";
-              else if (ratio <= 1.15) grade = "중박";
-              else grade = "평범";  // ← else로 바로 처리
-          }
-
-          return { ...group, currentPrice: currentUnitPrice, grade: grade };
-        });
-
-        // 5. 상태 업데이트
-        setGroups(enrichedGroups);
-        const rawCats = [...new Set(enrichedGroups.map(item => item.category))];
-        const sortedCats = rawCats.sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b));
-        setCategories(["전체", ...sortedCats]);
-      } 
-
-      setLoading(false); // ← 이제 정상적인 위치입니다.
+          // 5. 상태 업데이트
+          setGroups(enrichedGroups);
+          const rawCats = [...new Set(enrichedGroups.map(item => item.category))];
+          const sortedCats = rawCats.sort((a, b) => categoryOrder.indexOf(a) - categoryOrder.indexOf(b));
+          setCategories(["전체", ...sortedCats]);
+        }
+      } catch (error) {
+        console.error("데이터 로딩 중 에러 발생:", error);
+      } finally {
+        setLoading(false);
+      }
     } 
 
     fetchData();
@@ -103,10 +96,12 @@ useEffect(() => {
   // 등급별 스타일 적용 부분만 확인
   const getGradeStyle = (grade) => {
     switch(grade) {
-      case '역대급': return 'bg-purple-600 text-white';
-      case '대박': return 'bg-red-500 text-white';
-      case '중박': return 'bg-orange-400 text-white';
-      default: return 'bg-gray-400 text-white'; // 평범 및 분석중
+      case '역대급': return 'bg-purple-600 text-white font-bold';
+      case '대박':   return 'bg-red-500 text-white font-bold';
+      case '중박':   return 'bg-orange-400 text-white';
+      case '평범':   return 'bg-gray-400 text-white';
+      case '구매금지': return 'bg-black text-white font-bold'; // 🖤 구매금지 추가
+      default:      return 'bg-gray-200 text-gray-400'; // 분석중
     }
   };
 
@@ -126,12 +121,46 @@ useEffect(() => {
   return (
     <div className="max-w-4xl mx-auto bg-gray-50 min-h-screen pb-10">
       <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b shadow-sm">
-        <header className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <a href="/"><img src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo.png" className="h-7 w-auto" alt="로고" /></a>
-          </div>
-          <button onClick={() => window.history.back()} className="text-gray-400 text-xs font-bold bg-gray-50 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors">뒤로가기</button>
-        </header>
+        {/* ✨ 메인페이지와 크기를 맞춘 상단바 */}
+{/* ✨ 메인페이지급 볼륨 + 주인공 교체 상단바 */}
+{/* ✨ 메인페이지급 볼륨 + [핫딜온도계 | 싸게사게] 정렬 상단바 */}
+<header className="p-4 flex items-center justify-between bg-white border-b sticky top-0 z-30 shadow-sm">
+  <div className="flex items-center gap-3">
+    
+    {/* 1. 핫딜온도계 로고 (주인공! 맨 앞으로) */}
+    <div className="flex items-center ml-1">
+      <img 
+        src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo2.png" 
+        alt="핫딜온도계" 
+        // 메인페이지 로고와 높이를 맞춰서 시원하게! (h-12)
+        className="h-12 w-auto object-contain" 
+      />
+    </div>
+
+    {/* 구분선 (두 로고 사이를 깔끔하게 분리) */}
+    <div className="w-px h-6 bg-gray-200 mx-1"></div> 
+
+    {/* 2. 싸게사게 로고 (보조 역할로 뒤로 이동) */}
+    <a href="/" className="flex items-center opacity-70 hover:opacity-100 transition-opacity">
+      <img 
+        src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo.png" 
+        alt="싸게사게" 
+        // 주인공보다 살짝 작게(h-9) 설정해서 밸런스를 맞췄어
+        className="h-9 w-auto object-contain" 
+      />
+    </a>
+  </div>
+
+  {/* 우측 상단 버튼 (뒤로가기 또는 홈) */}
+  <div className="flex gap-2">
+    <button 
+      onClick={() => window.history.back()} 
+      className="text-gray-500 text-xs font-bold bg-gray-50 px-4 py-2 rounded-full hover:bg-gray-100 transition-colors"
+    >
+      뒤로가기
+    </button>
+  </div>
+</header>
         <div className="px-4 pb-3">
           <input 
             type="text" 
@@ -195,18 +224,16 @@ useEffect(() => {
                           <div className="flex-1 min-w-0">
                             <h4 className="text-sm font-bold text-gray-800 truncate">{item.group_name}</h4>
                             <div className="flex items-center gap-2 mt-1.5">
-                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${
-                                item.grade === '역대급' ? 'bg-purple-600 text-white' :
-                                item.grade === '대박' ? 'bg-red-500 text-white' :
-                                item.grade === '중박' ? 'bg-orange-400 text-white' : 'bg-gray-400 text-white'
-                              }`}>
+                              {/* ✅ 5단계 스타일이 적용된 등급 뱃지 */}
+                              <span className={`text-[9px] font-black px-2 py-0.5 rounded-md ${getGradeStyle(item.grade)}`}>
                                 {item.grade || '분석중'} ●
                               </span>
                               <p className="text-[10px] text-gray-400 font-bold">클릭해서 추이 보기</p>
                             </div>
                           </div>
+                          {/* 화살표 아이콘 */}
                           <span className="text-gray-200 text-lg group-hover:text-gray-400 transition-colors">›</span>
-                        </a>
+                          </a>
                       ))}
                     </div>
                   </div>

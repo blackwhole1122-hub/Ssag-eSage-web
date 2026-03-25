@@ -22,10 +22,12 @@ export const metadata = {
 
   // ✅ 1. 구글과 네이버 인증 통합
   verification: {
-    naver: "4e8e9141f9ec9d45577433029e1c20c21d56fd0f",
-    google: "AlYaCKTyHzy8ufh7Fp9WB1vUw53b-SzuLTPxuulrKnE", // 👈 Google Search Console에서 받은 코드
+    google: "AlYaCKTyHzy8ufh7Fp9WB1vUw53b-SzuLTPxuulrKnE", // 구글은 그대로 둬도 잘 됩니다.
+    // ✅ 네이버는 아래처럼 'other' 안에 직접 이름을 써주는 게 더 정확합니다.
+    other: {
+      "naver-site-verification": "4e8e9141f9ec9d45577433029e1c20c21d56fd0f",
+    },
   },
-
   // ✅ 2. 네이버가 좋아하는 표준 주소 설정 (중복 방지)
   alternates: {
     canonical: 'https://www.ssagesage.com',
