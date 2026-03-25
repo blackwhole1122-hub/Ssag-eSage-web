@@ -4,35 +4,20 @@ import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { KEYWORD_GROUPS } from '@/lib/keywords';
 import { Line } from 'react-chartjs-2';
+import { getUnitPrice, calculateGrade } from '@/lib/priceUtils'; 
 import {
-  Chart as ChartJS,
-  CategoryScale, LinearScale,
-  PointElement, LineElement,
-  Title, Tooltip, Legend
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend
 } from 'chart.js';
 
-function calcGrade(currentPrice, minPrice, avgPrice) {
-  if (!currentPrice || !minPrice || !avgPrice || currentPrice <= 0) return null;
-  const ratioToMin = (currentPrice - minPrice) / minPrice * 100;
-  const ratioToAvg = (avgPrice - currentPrice) / avgPrice * 100;
-  if (ratioToMin <= 5  && ratioToAvg >= 20) return "역대급";
-  if (ratioToMin <= 15 || ratioToAvg >= 10) return "대박";
-  if (ratioToMin <= 30 || ratioToAvg >= 0)  return "중박";
-  return "평범";
-}
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 const gradeBadge = {
-  "역대급": "bg-purple-500 text-purple-100",
-  "대박":   "bg-red-500 text-red-100",
-  "중박":   "bg-orange-400 text-orange-100",
-  "평범":   "bg-gray-400 text-gray-100",
+  "역대급": "bg-purple-600 text-white",
+  "대박": "bg-red-500 text-white",
+  "중박": "bg-orange-400 text-white",
+  "평범": "bg-gray-400 text-white",
+  "핫딜": "bg-red-500 text-white",
 };
-
-ChartJS.register(
-  CategoryScale, LinearScale,
-  PointElement, LineElement,
-  Title, Tooltip, Legend
-);
 
 export default function DealDetail() {
   const { id } = useParams();
@@ -41,52 +26,31 @@ export default function DealDetail() {
   const [loading, setLoading] = useState(true);
   const [buyUrl, setBuyUrl] = useState(null);
   const [chartData, setChartData] = useState(null);
-  const [dynamicGrade, setDynamicGrade] = useState(null);
+  const [calculatedGrade, setCalculatedGrade] = useState(null); 
 
   const sourceLabel = {
-    dogdrip: "개미집", fmkorea: "에펨코리아", arca: "아카라이브",
-    clien: "클리앙", ppomppu: "뽐뿌", quasarzone: "퀘이사존",
-    zod: "ZOD", ruliweb: "루리웹"
+    dogdrip: "개드립", fmkorea: "에펨코리아", arca: "아카라이브", clien: "클리앙", ppomppu: "뽐뿌", quasarzone: "퀘이사존", zod: "ZOD", ruliweb: "루리웹"
   };
 
-  // 1. deal 데이터 가져오기
   useEffect(() => {
     async function fetchDeal() {
-      const { data, error } = await supabase
-        .from('hotdeals')
-        .select('*')
-        .eq('id', id)
-        .single();
-      if (error) console.error(error);
-      else setDeal(data);
+      const { data, error } = await supabase.from('hotdeals').select('*').eq('id', id).single();
+      if (!error) setDeal(data);
       setLoading(false);
     }
     fetchDeal();
   }, [id]);
 
-  // 2. deal 가져온 후 쿠팡 링크 변환
-  // ★ shop_url 또는 url에 "coupang" 문자열이 포함된 경우 무조건 파트너스 링크로 변환
   useEffect(() => {
     async function convertLink() {
       const shopUrl = deal?.shop_url || deal?.url;
-      if (!shopUrl) {
-        setBuyUrl(deal?.url || '');
-        return;
-      }
-
-      // "coupang" 포함 여부로 판단 (coupang.com, link.coupang.com, cp.ee 등 모두 처리)
-      if (!shopUrl.includes('coupang')) {
-        setBuyUrl(shopUrl);
-        return;
-      }
-
+      if (!shopUrl) { setBuyUrl(deal?.url || ''); return; }
+      if (!shopUrl.includes('coupang')) { setBuyUrl(shopUrl); return; }
       try {
         const res = await fetch(`/api/coupang?url=${encodeURIComponent(shopUrl)}`);
         const data = await res.json();
         setBuyUrl(data.deeplink || shopUrl);
-      } catch {
-        setBuyUrl(shopUrl);
-      }
+      } catch { setBuyUrl(shopUrl); }
     }
     if (deal) convertLink();
   }, [deal]);
@@ -94,88 +58,86 @@ export default function DealDetail() {
   useEffect(() => {
     async function fetchGraphData() {
       if (!deal) return;
-
-      const allGroups = Object.values(KEYWORD_GROUPS).flat();
-      let kw = deal.matched_keyword;
       
-      if (!kw) {
-        for (const group of allGroups) {
-          const isMatch = group.keywords.some(k => {
+      const allGroups = Object.values(KEYWORD_GROUPS).flat();
+      let targetKw = deal.matched_keyword;
+      
+      // 1. 딜 제목에서 키워드 그룹 찾기 (더 정교하게)
+      if (!targetKw) {
+        const matchedGroup = allGroups.find(group => {
+          return group.keywords.some(k => {
             const normalizedTitle = deal.title?.replace(/\s/g, '') || "";
-            return k.split(' ').every(word => 
-              deal.title?.includes(word) || normalizedTitle.includes(word.replace(/\s/g, ''))
-            );
+            return k.split(' ').every(word => deal.title?.includes(word) || normalizedTitle.includes(word.replace(/\s/g, '')));
           });
-          if (isMatch) { kw = group.keywords[0]; break; }
-        }
+        });
+        if (matchedGroup) targetKw = matchedGroup.keywords[0];
       }
 
-      if (!kw) return; 
+      console.log("🎯 현재 딜의 매칭 키워드:", targetKw);
 
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      if (!targetKw) {
+        console.warn("⚠️ 매칭되는 키워드 그룹을 찾지 못했습니다.");
+        return;
+      }
 
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+
+      // 2. 전체 히스토리 가져오기 (날짜는 6개월로 여유 있게)
       const { data, error } = await supabase
         .from('price_history')
-        .select('price_num, crawled_at, matched_keyword, title')
+        .select('*')
         .gt('price_num', 0)
-        .gte('crawled_at', oneYearAgo.toISOString()) // ✨ 1년 전 날짜보다 최근인 것만 싹 다 가져오기!
+        .gte('crawled_at', new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString())
         .order('crawled_at', { ascending: false });
 
-      if (error || !data) return;
+      if (error || !data) {
+        console.error("❌ DB 데이터 호출 실패:", error);
+        return;
+      }
+
+      console.log("📊 DB에서 가져온 총 데이터 건수:", data.length);
 
       const history = [];
       data.forEach(row => {
+        // DB 행의 키워드 판별
         let rowKw = row.matched_keyword;
         if (!rowKw) {
-          const matchGroup = allGroups.find(g => g.keywords[0] === kw);
-          if (matchGroup) {
-             const isMatch = matchGroup.keywords.some(k => {
-               const normTitle = row.title?.replace(/\s/g, '') || "";
-               return k.split(' ').every(word => row.title?.includes(word) || normTitle.includes(word.replace(/\s/g, '')));
-             });
-             if (isMatch) rowKw = kw;
-          }
+          const matchGroup = allGroups.find(g => g.keywords.some(k => row.title?.includes(k)));
+          if (matchGroup) rowKw = matchGroup.keywords[0];
         }
-        if (rowKw === kw) {
-          history.push({
-            date: row.crawled_at?.slice(5, 10),
-            price: row.price_num
+        
+        // 🌟 킴님이 찾고자 하는 키워드와 일치하는 데이터만 수집
+        if (rowKw === targetKw) {
+          const unitInfo = getUnitPrice(row, row.title);
+          history.push({ 
+            date: row.crawled_at?.slice(5, 10), 
+            price: unitInfo.price 
           });
         }
       });
 
-      if (history.length === 0) return;
+      console.log(`✅ [${targetKw}] 키워드와 일치하는 데이터 건수:`, history.length);
 
-      history.reverse();
+      if (history.length === 0) {
+        setChartData(null);
+        return;
+      }
+
+      // 날짜순 정렬 및 중복 제거
       const uniqueHistory = [];
       const seenDates = new Set();
-      history.forEach(h => {
+      history.reverse().forEach(h => {
         if (!seenDates.has(h.date)) {
           seenDates.add(h.date);
           uniqueHistory.push(h);
         }
       });
 
-      // ✨ [여기서부터 추가!] 차트를 그리기 전에, 모아둔 과거 가격으로 등급을 계산합니다.
-      if (uniqueHistory.length >= 3) {
-        const prices = uniqueHistory.map(h => h.price);
-        const minPrice = Math.min(...prices);
-        const avgPrice = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
-        
-        const nums = deal.price?.replace(/[^\d]/g, '') || "0";
-        const currentPrice = parseInt(nums);
-        
-        if (currentPrice > 0) {
-          const grade = calcGrade(currentPrice, minPrice, avgPrice);
-          setDynamicGrade(grade);
-        }
-      }
-
       setChartData({
         labels: uniqueHistory.map(h => h.date),
         datasets: [{
-          label: kw,
+          label: targetKw,
           data: uniqueHistory.map(h => h.price),
           borderColor: '#EF9F27',
           backgroundColor: '#EF9F2720',
@@ -183,183 +145,74 @@ export default function DealDetail() {
           pointRadius: 4,
         }]
       });
+
+      // 등급 계산
+      const minUnitPrice = Math.min(...uniqueHistory.map(h => h.price));
+      const avgUnitPrice = uniqueHistory.reduce((a, b) => a + b.price, 0) / uniqueHistory.length;
+      const currentPriceRaw = parseInt(deal.price?.replace(/[^\d]/g, '') || "0");
+      const { price: currentUnitPrice } = getUnitPrice({ price_num: currentPriceRaw }, deal.title);
+
+      setCalculatedGrade(calculateGrade(currentUnitPrice, minUnitPrice, avgUnitPrice));
     }
 
     fetchGraphData();
   }, [deal]);
-  // ✨ [여기까지 추가 끝!]
 
-  if (loading) return (
-    <div className="max-w-2xl mx-auto min-h-screen flex items-center justify-center text-gray-400 text-sm">
-      불러오는 중... ⏳
-    </div>
-  );
+  if (loading) return <div className="p-20 text-center font-bold text-gray-400">시세 분석 중... 📈</div>;
+  if (!deal) return <div className="p-20 text-center">상품 정보가 없습니다.</div>;
 
-  if (!deal) return (
-    <div className="max-w-2xl mx-auto min-h-screen flex items-center justify-center text-gray-400 text-sm">
-      게시글을 찾을 수 없어요 😅
-    </div>
-  );
-
-  const rawUrl = deal?.shop_url || deal?.url || '';
-  const isCoupang = rawUrl.includes('coupang');
-
-  // ✨ VIP 문지기: keywords.js 명단에 있는 상품인지 검사
-  const allTrackedKeywords = Object.values(KEYWORD_GROUPS).flat().flatMap(g => g.keywords);
-  let isTracked = false;
-  
-  if (deal.matched_keyword && allTrackedKeywords.includes(deal.matched_keyword)) {
-    isTracked = true;
-  } else {
-    isTracked = allTrackedKeywords.some(k => {
-      const normalizedTitle = deal.title?.replace(/\s/g, '') || "";
-      return k.split(' ').every(word => 
-        deal.title?.includes(word) || normalizedTitle.includes(word.replace(/\s/g, ''))
-      );
-    });
-  }
+  const displayGrade = calculatedGrade || '핫딜';
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10">
-
-      {/* 헤더: 메인 페이지로 이동 */}
-      <header className="bg-white border-b p-4 sticky top-0 z-10 shadow-sm flex items-center gap-3">
-        <button
-          onClick={() => {
-            // 브라우저 뒤로가기 대신 무조건 메인 주소로 이동
-            router.push('/');
-          }}
-          className="text-gray-400 hover:text-gray-600 text-xl px-1"
-        >
-          ←
-        </button>
+      <header className="bg-white border-b p-3 sticky top-0 z-10 shadow-sm flex items-center gap-3">
+        <button onClick={() => router.back()} className="text-gray-500 hover:text-gray-800 text-xl px-1">←</button>
+        <a href="/" className="flex-shrink-0 text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1.5 rounded-md border border-blue-100">🏠 홈</a>
         <h1 className="text-sm font-bold text-gray-800 truncate flex-1">{deal.title}</h1>
       </header>
 
       <main className="p-3 flex flex-col gap-3">
-
-        {/* 핵심 정보 카드 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <div className="flex items-center gap-2 mb-3 flex-wrap">
-            
-            {/* ✨ isTracked가 true(명단에 있음)일 때만 뱃지를 보여줌 */}
-            {isTracked && (
-              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                dynamicGrade ? gradeBadge[dynamicGrade] : 'bg-red-500 text-red-100'
-              }`}>
-                {dynamicGrade || '핫딜'} 
-              </span>
-            )}
-            
-            <span className="text-xs font-bold text-blue-500">
-              {sourceLabel[deal.source] || deal.source}
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${gradeBadge[displayGrade]}`}>
+              {displayGrade} 
             </span>
-            {deal.shop && (
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                {deal.shop}
-              </span>
-            )}
-            {deal.category && (
-              <span className="text-xs text-gray-400">{deal.category}</span>
-            )}
+            <span className="text-xs font-bold text-blue-500">{sourceLabel[deal.source] || deal.source}</span>
           </div>
-
-          <h2 className="text-base font-bold text-gray-800 leading-snug mb-3">
-            {deal.title}
-          </h2>
-
-          <p className="text-2xl font-bold text-red-500 mb-1">
-            {deal.price || '가격미정'}
-          </p>
-           <div className="flex items-center justify-between">
-            <p className="text-xs text-gray-400">
-              {new Date(deal.crawled_at).toLocaleString('ko-KR', {
-                year: 'numeric',
-                month: 'numeric',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </p>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                const btn = document.getElementById('copy-btn');
-                btn.innerText = '✓';
-                setTimeout(() => btn.innerText = '🔗', 1500);
-              }}
-              id="copy-btn"
-              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-base hover:bg-gray-200 transition-colors flex-shrink-0"
-            >
-              🔗
-            </button>
-          </div>
+          <h2 className="text-base font-bold text-gray-800 mb-3">{deal.title}</h2>
+          <p className="text-2xl font-bold text-red-500 mb-1">{deal.price || '가격미정'}</p>
         </div>
 
-        {/* 이미지 + 본문 카드 */}
-        {(deal.image || deal.content) && (
+        {deal.image && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            {deal.image && (
-              <img
-                src={deal.image}
-                alt={deal.title}
-                referrerPolicy="no-referrer"
-                className="w-full object-contain"
-                onError={(e) => e.target.style.display = 'none'}
-              />
-            )}
-            {deal.content && (
-              <div className="p-4">
-                <h3 className="text-sm font-bold text-gray-700 mb-2">📋 게시글 내용</h3>
-                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                  {deal.content}
-                </p>
-              </div>
-            )}
+            <img src={deal.image} alt={deal.title} referrerPolicy="no-referrer" className="w-full object-contain" />
           </div>
         )}
 
-        {/* 가격 추이 그래프 자리 */}
+        {/* 🌟 킴님이 궁금해한 본문 내용 */}
+        {deal.content && (
+          <div className="bg-white rounded-2xl p-5 border border-gray-100">
+             <h4 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">Community Post</h4>
+             <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-all">
+               {deal.content}
+             </div>
+          </div>
+        )}
+
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-          <h3 className="text-sm font-bold text-gray-700 mb-3">📈 가격 추이 (최근 1년)</h3>
+          <h3 className="text-sm font-bold text-gray-700 mb-3">📈 가격 추이 (최근 6개월)</h3>
           {chartData ? (
-            <div className="w-full">
-              <Line data={chartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
-            </div>
+            <Line data={chartData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
           ) : (
             <div className="h-24 flex items-center justify-center bg-gray-50 rounded-xl">
-              <p className="text-xs text-gray-400">가격 데이터 수집 중... ⏳</p>
+              <p className="text-xs text-gray-400">분석 가능한 가격 데이터가 부족합니다 ⏳ (F12 콘솔 확인)</p>
             </div>
           )}
         </div>
 
-        {/* 구매하기 버튼 */}
-        <a
-          href={buyUrl || deal.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block bg-blue-600 text-white text-center font-bold py-4 rounded-2xl shadow-sm hover:bg-blue-700 transition-colors"
-        >
-          구매하기 →
+        <a href={buyUrl || deal.url} target="_blank" rel="noopener noreferrer" className="block bg-blue-600 text-white text-center font-bold py-4 rounded-2xl shadow-sm hover:bg-blue-700 transition-colors">
+          구매하러 가기 →
         </a>
-
-        {/* 쿠팡 파트너스 안내 문구 — 쿠팡 링크일 때만 표시 */}
-        {isCoupang && (
-          <p className="text-center text-xs text-gray-400 -mt-1">
-            이 링크는 쿠팡 파트너스 링크로, 수수료를 받을 수 있습니다.
-          </p>
-        )}
-
-        {/* 원본 게시글 보기 */}
-        <a
-          href={deal.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block bg-white text-gray-500 text-center text-sm py-3 rounded-2xl border border-gray-200 hover:bg-gray-50 transition-colors"
-        >
-          원본 게시글 보기
-        </a>
-
       </main>
     </div>
   );

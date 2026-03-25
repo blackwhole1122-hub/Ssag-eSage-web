@@ -1,92 +1,79 @@
 'use client'
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
 export default function AdminLogin() {
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false); // 로딩 상태 추가
+  const router = useRouter();
 
-  async function handleLogin(e) {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
+    console.log("로그인 시도 시작..."); // 확인용 1
+    setIsSubmitting(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (error) {
-      setError('이메일 또는 비밀번호가 틀렸어요.');
-      setLoading(false);
-    } else {
-      router.push('/admin/dashboard');
+      if (error) {
+  alert('로그인 실패: ' + error.message);
+} else {
+  console.log("로그인 성공! 쿠키 장부 들고 대시보드로 이동합니다.");
+  
+  // ✅ router.push 대신 이걸 쓰세요. 
+  // 문지기(미들웨어)에게 '나 열쇠 생겼어!'라고 새로고침하며 보여주는 확실한 방법입니다.
+  window.location.href = '/admin/dashboard';
+}
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-sm">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+      <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-lg w-full max-w-sm border border-gray-200">
+        <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">싸게사게 관리자 🦀</h1>
+        
+        <div className="flex flex-col gap-3 mb-6">
+          <input 
+            type="email" 
+            placeholder="이메일" 
+            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input 
+            type="password" 
+            placeholder="비밀번호" 
+            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-800"
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            required
+          />
+        </div>
 
-        {/* 로고 부분 */}
-        <div className="text-center mb-8">
-          <a href="https://www.ssagesage.com/">
-            <h1 className="text-xl font-bold text-gray-800">싸게사게 🦀</h1>
-          </a>
-        </div> {/* 👈 이 닫는 태그가 꼭 있어야 합니다! */}
-         
-        {/* 로그인 폼 */}
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
-          <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">
-              이메일
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@example.com"
-              required
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">
-              비밀번호
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호 입력"
-              required
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* 에러 메시지 */}
-          {error && (
-            <p className="text-xs text-red-500 text-center">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-          >
-            {loading ? '로그인 중...' : '로그인'}
-          </button>
-        </form>
-
-        <p className="text-center text-xs text-gray-300 mt-6">
-          © 2026 싸게사게
+        <button 
+          type="submit" 
+          disabled={isSubmitting}
+          className={`w-full p-4 rounded-2xl font-bold text-white transition-colors ${
+            isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
+          {isSubmitting ? '로그인 중...' : '관리자 로그인'}
+        </button>
+        
+        <p className="text-center text-[10px] text-gray-400 mt-4">
+          계정이 없다면 수파베이스 Authentication에서 생성하세요.
         </p>
-      </div>
+      </form>
     </div>
   );
 }

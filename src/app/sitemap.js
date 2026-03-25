@@ -1,39 +1,36 @@
-import { supabase } from '@/lib/supabase'
+// src/app/sitemap.js
+import { supabase } from '@/lib/supabase';
 
 export default async function sitemap() {
-  const baseUrl = 'https://www.ssagesage.com'
+  const baseUrl = 'https://www.ssagesage.com';
 
-  // 1. 블로그 포스트 데이터 가져오기
-  const { data: posts } = await supabase
-    .from('blog_posts')
-    .select('slug, updated_at')
+  // 1. 핫딜온도계 품목(slug)들 가져오기
+  const { data: groups } = await supabase.from('keyword_groups').select('slug');
+  const groupEntries = groups?.map((g) => ({
+    url: `${baseUrl}/hotdeal-thermometer/${g.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'daily',
+    priority: 0.8,
+  })) || [];
 
-  const blogUrls = (posts || []).map((post) => ({
-    url: `${baseUrl}/blog/${post.slug}`,
-    lastModified: new Date(post.updated_at),
-  }))
+  // 2. 최신 핫딜 100개 가져오기
+  const { data: deals } = await supabase
+    .from('hotdeals')
+    .select('id')
+    .order('crawled_at', { ascending: false })
+    .limit(100);
 
-  // 2. ✨ 핫딜(hotdeals) 데이터 가져오기
-  const { data: hotdeals } = await supabase
-    .from('hotdeals') // 킴님이 알려주신 테이블 이름!
-    .select('id, created_at')
+  const dealEntries = deals?.map((d) => ({
+    url: `${baseUrl}/deal/${d.id}`,
+    lastModified: new Date(),
+    changeFrequency: 'hourly',
+    priority: 0.6,
+  })) || [];
 
-  const dealUrls = (hotdeals || []).map((deal) => ({
-    url: `${baseUrl}/deal/${deal.id}`, // 상세 페이지 주소 규칙에 맞게 수정하세요!
-    lastModified: new Date(deal.created_at),
-  }))
-
-  // 3. 전체 사이트맵 합치기
   return [
-    {
-      url: baseUrl,
-      lastModified: new Date(),
-    },
-    {
-      url: `${baseUrl}/blog`,
-      lastModified: new Date(),
-    },
-    ...blogUrls,
-    ...dealUrls, // ✨ 이제 핫딜 페이지들도 검색 엔진이 수집합니다!
-  ]
+    { url: baseUrl, lastModified: new Date(), priority: 1 },
+    { url: `${baseUrl}/hotdeal-thermometer`, lastModified: new Date(), priority: 0.9 },
+    ...groupEntries,
+    ...dealEntries,
+  ];
 }

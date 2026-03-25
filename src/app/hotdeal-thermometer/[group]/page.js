@@ -1,220 +1,181 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { KEYWORD_GROUPS } from '@/lib/keywords'; // 👈 경로가 맞는지 꼭 확인!
-import { Line } from 'react-chartjs-2';
+import { useParams } from 'next/navigation';
 import {
-  Chart as ChartJS,
-  CategoryScale, LinearScale,
-  PointElement, LineElement,
-  Title, Tooltip, Legend
+  Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement,
+  Title, Tooltip, Filler, Legend,
 } from 'chart.js';
+import { Line } from 'react-chartjs-2';
+// ✅ 통합 함수 가져오기
+import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
 
-ChartJS.register(
-  CategoryScale, LinearScale,
-  PointElement, LineElement,
-  Title, Tooltip, Legend
-);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, Legend);
 
-function getUnitPrice(row) {
-  if (row.price_per_100ml && row.price_per_100ml > 0) return { price: row.price_per_100ml, unit: "100ml당" };
-  if (row.price_per_100g  && row.price_per_100g  > 0) return { price: row.price_per_100g,  unit: "100g당" };
-  if (row.price_per_unit  && row.price_per_unit  > 0) return { price: row.price_per_unit,  unit: "개당" };
-  return null;
-}
-
-function calcGrade(currentPrice, minPrice, avgPrice) {
-  if (!currentPrice || !minPrice || !avgPrice || currentPrice <= 0) return null;
-  const ratioToMin = (currentPrice - minPrice) / minPrice * 100;
-  const ratioToAvg = (avgPrice - currentPrice) / avgPrice * 100;
-  if (ratioToMin <= 5  && ratioToAvg >= 20) return "역대급";
-  if (ratioToMin <= 15 || ratioToAvg >= 10) return "대박";
-  if (ratioToMin <= 30 || ratioToAvg >= 0)  return "중박";
-  return "평범";
-}
-
-const gradeBadge = {
-  "역대급": "bg-purple-500 text-purple-100",
-  "대박":   "bg-red-500 text-red-100",
-  "중박":   "bg-orange-400 text-orange-100",
-  "평범":   "bg-gray-400 text-gray-100",
-};
-
-export default function GroupDetail() {
-  const { group: slugParam } = useParams();
-  const [priceStats, setPriceStats] = useState({});
-  const [chartData, setChartData] = useState(null);
+export default function DetailPage() {
+  const params = useParams();
+  const slug = params?.group;
+  
+  const [product, setProduct] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const groupInfo = Object.values(KEYWORD_GROUPS).flat().find(g => g.slug === slugParam);
-
   useEffect(() => {
-    if (!groupInfo) return;
-
-    async function fetchStats() {
+    async function fetchDetailData() {
+      if (!slug) return;
       setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('price_history')
-          .select('title, price_num, price_per_100ml, price_per_100g, price_per_unit, crawled_at, matched_keyword')
-          .gt('price_num', 0)
-          .order('crawled_at', { ascending: false });
+      
+      const { data: productData } = await supabase.from('keyword_groups').select('*').eq('slug', slug).maybeSingle();
+      const { data: priceData } = await supabase.from('price_history').select('*').eq('group_slug', slug).order('created_at', { ascending: true });
 
-        if (error || !data) {
-          console.error("데이터 로드 실패:", error);
-          return;
-        }
+      if (productData) setProduct(productData);
 
-        const grouped = {};
-        const groupedHistory = {};
-
-        data.forEach(row => {
-          let kw = null;
-          // 1. 키워드 매칭
-          if (row.matched_keyword && groupInfo.keywords.includes(row.matched_keyword)) {
-            kw = row.matched_keyword;
-          } else {
-            kw = groupInfo.keywords.find(k => {
-              const normalizedTitle = row.title?.replace(/\s/g, '') || "";
-              return k.split(' ').every(word => 
-                row.title?.includes(word) || normalizedTitle.includes(word.replace(/\s/g, ''))
-              );
-            });
-          }
-
-          if (!kw) return;
-
-          // 2. 가방 초기화
-          if (!grouped[kw]) grouped[kw] = [];
-          if (!groupedHistory[kw]) groupedHistory[kw] = [];
-
-          // 3. 데이터 삽입
-          grouped[kw].push(row);
-          const up = getUnitPrice(row);
-          if (up) {
-            groupedHistory[kw].push({
-              // ✨ select한 컬럼명과 똑같이 crawled_at으로 통일!
-              date: row.crawled_at?.slice(5, 10), 
-              price: up.price,
-            });
-          }
-        });
-
-        // 통계 계산
-        const stats = {};
-        Object.entries(grouped).forEach(([kw, rows]) => {
-          const unitPrices = rows.map(r => getUnitPrice(r)).filter(Boolean);
-          let minPrice, avgPrice, latestPrice, unitLabel;
-
-          if (unitPrices.length > 0) {
-            const prices = unitPrices.map(u => u.price);
-            minPrice    = Math.min(...prices);
-            avgPrice    = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
-            latestPrice = prices[0];
-            unitLabel   = unitPrices[0].unit;
-          } else {
-            const prices = rows.map(r => r.price_num).filter(p => p > 0);
-            if (prices.length === 0) return;
-            minPrice    = Math.min(...prices);
-            avgPrice    = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
-            latestPrice = prices[0];
-            unitLabel   = "총액";
-          }
-          
-          stats[kw] = {
-            minPrice, avgPrice, latestPrice, unitLabel,
-            count: rows.length,
-            history: (groupedHistory[kw] || []).slice(0, 30).reverse(),
-          };
-        });
-
-        setPriceStats(stats);
-
-        // 그래프 데이터 생성
-        const colors = ['#E24B4A', '#378ADD', '#1D9E75', '#EF9F27'];
-        const allDates = [...new Set(
-          Object.values(stats).flatMap(s => s.history.map(h => h.date))
-        )].sort();
-
-        setChartData({
-          labels: allDates,
-          datasets: Object.entries(stats).map(([kw, stat], i) => ({
-            label: kw,
-            data: allDates.map(date => {
-              const found = stat.history.find(h => h.date === date);
-              return found ? found.price : null;
-            }),
-            borderColor: colors[i % colors.length],
-            backgroundColor: colors[i % colors.length] + '20',
-            tension: 0.3,
-            spanGaps: true,
-            pointRadius: 4,
-          }))
-        });
-      } catch (e) {
-        console.error("오류:", e);
-      } finally {
-        setLoading(false);
+      if (priceData) {
+        const cleanedData = priceData.map(item => ({
+          ...item,
+          price_num: Number(item.price_raw?.replace(/[^0-9]/g, "")) || 0 
+        }));
+        setPriceHistory(cleanedData);
       }
+      setLoading(false);
     }
-    fetchStats();
-  }, [slugParam, groupInfo]);
+    fetchDetailData();
+  }, [slug]);
 
-  if (!groupInfo) return <div className="p-10 text-center text-gray-400">정보가 없어요 😅</div>;
+  if (loading) return <div className="p-20 text-center font-bold text-gray-400">시세 분석 중... 📈</div>;
+  if (!product) return <div className="p-20 text-center">상품 정보가 없습니다.</div>;
+
+  // --- 🎯 통합 데이터 계산 로직 ---
+
+  // 1. 모든 히스토리에 통합 단가 로직 적용
+  const rawProcessedHistory = priceHistory.map(h => {
+  const unitInfo = getUnitPrice(h, product.group_name);
+  return { ...h, price: unitInfo.price, label: unitInfo.label };
+});
+
+// ✅ 2. 중복 날짜 제거 로직 추가 (1일 1데이터로 압축)
+const processedHistory = [];
+const seenDates = new Set();
+
+for (let i = rawProcessedHistory.length - 1; i >= 0; i--) {
+  const dateStr = new Date(rawProcessedHistory[i].crawled_at || rawProcessedHistory[i].created_at).toLocaleDateString();
+  
+  if (!seenDates.has(dateStr)) {
+    processedHistory.unshift(rawProcessedHistory[i]); // 배열 앞쪽에 추가해서 순서 유지
+    seenDates.add(dateStr);
+  }
+}
+
+  // 2. 주요 지표 추출
+  const latest = processedHistory[processedHistory.length - 1] || {};
+  const currentUnitPrice = latest.price || 0;
+  const unitLabel = latest.label || "단위당";
+  const currentPriceRaw = latest.price_num || 0;
+
+  // 3. 역대 최저가 및 3개월 평균 (단가 기준)
+  const allTimeLow = processedHistory.length > 0 
+    ? Math.min(...processedHistory.map(h => h.price)) 
+    : 0;
+
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  
+  let recent3Months = processedHistory.filter(h => new Date(h.crawled_at) >= threeMonthsAgo);
+  if (recent3Months.length === 0 && processedHistory.length > 0) {
+    recent3Months = processedHistory.slice(-10);
+  }
+  
+  const avg3Month = recent3Months.length > 0 
+    ? recent3Months.reduce((a, b) => a + b.price, 0) / recent3Months.length 
+    : 0;
+
+  // 4. ✅ 통합 등급 판별 적용 (1.03 오차범위 포함)
+  const grade = calculateGrade(currentUnitPrice, allTimeLow, avg3Month);
+
+  // 등급별 UI 색상 매칭
+  const gradeStyles = {
+    "역대급": "bg-purple-600 text-white",
+    "대박": "bg-red-500 text-white",
+    "중박": "bg-orange-400 text-white",
+    "평범": "bg-gray-400 text-white"
+  };
+
+  // --- 📈 차트 설정 ---
+  const lineData = {
+  labels: processedHistory.map(h => 
+    new Date(h.crawled_at || h.created_at).toLocaleDateString('ko-KR', {month: 'numeric', day: 'numeric'})
+  ),
+  datasets: [{
+      data: processedHistory.map(h => h.price),
+      fill: true,
+      borderColor: '#f97316',
+      backgroundColor: 'rgba(249, 115, 22, 0.05)',
+      tension: 0.3,
+      pointRadius: 1,
+    }]
+  };
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 0 } },
+      y: { grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }
+    }
+  };
 
   return (
-    <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10">
-      <header className="bg-white border-b p-4 sticky top-0 z-10 flex items-center gap-3">
-        <button onClick={() => window.history.back()} className="text-gray-400 text-xl">←</button>
-        <h1 className="text-lg font-bold text-gray-800">🌡️ {groupInfo.group} 상세</h1>
+    <div className="max-w-xl mx-auto bg-gray-50 min-h-screen">
+      <header className="p-4 flex items-center bg-white border-b sticky top-0 z-10">
+        <button onClick={() => window.history.back()} className="mr-4">←</button>
+        <h1 className="text-sm font-black text-gray-800">{product.group_name}</h1>
       </header>
-      <main className="p-3">
-        {loading ? (
-          <div className="text-center py-20 text-gray-400 text-sm">데이터 분석 중... ⏳</div>
-        ) : (
-          <>
-            {groupInfo.keywords.map(kw => {
-              const stat = priceStats[kw];
-              const grade = stat ? calcGrade(stat.latestPrice, stat.minPrice, stat.avgPrice) : null;
-              return (
-                <div key={kw} className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-4 overflow-hidden">
-                  <div className={`text-[10px] font-bold px-3 py-1 ${grade ? gradeBadge[grade] : 'bg-gray-100 text-gray-400'}`}>
-                    {grade || '수집중'}
-                  </div>
-                  <div className="p-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <p className="font-bold text-gray-800 text-sm">{kw}</p>
-                      {stat && <span className="text-[10px] text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full">{stat.unitLabel} 기준</span>}
-                    </div>
-                    {stat ? (
-                      <div className="grid grid-cols-3 gap-2 text-center">
-                        <div className="bg-gray-50 p-2 rounded-xl">
-                          <p className="text-[10px] text-gray-400 mb-1">최저가</p>
-                          <p className="text-xs font-bold text-purple-600">{stat.minPrice.toLocaleString()}원</p>
-                        </div>
-                        <div className="bg-gray-50 p-2 rounded-xl">
-                          <p className="text-[10px] text-gray-400 mb-1">평균가</p>
-                          <p className="text-xs font-bold text-gray-600">{stat.avgPrice.toLocaleString()}원</p>
-                        </div>
-                        <div className="bg-gray-50 p-2 rounded-xl">
-                          <p className="text-[10px] text-gray-400 mb-1">최근가</p>
-                          <p className="text-xs font-bold text-red-500">{stat.latestPrice.toLocaleString()}원</p>
-                        </div>
-                      </div>
-                    ) : <p className="text-xs text-gray-300 text-center py-4">데이터 수집 중</p>}
-                  </div>
-                </div>
-              );
-            })}
-            {chartData && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                <h3 className="text-xs font-bold text-gray-500 mb-4">📈 가격 추이 (최근 30일)</h3>
-                <Line data={chartData} options={{ responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }} />
-              </div>
+
+      <main className="p-6 space-y-6">
+        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-6">
+          <div className="flex justify-between items-center text-gray-400">
+             {/* ✅ 실시간 등급 반영 */}
+             <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg ${gradeStyles[grade]}`}>
+               {grade} ●
+             </span>
+             <span className="text-[9px] font-bold uppercase tracking-widest">{unitLabel} 가격 기준</span>
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-xs text-gray-400 font-bold">현재 {unitLabel} 시세</p>
+            <div className="text-4xl font-black text-gray-900">
+              {currentUnitPrice > 0 ? `${Math.floor(currentUnitPrice).toLocaleString()}원` : "0원"}
+            </div>
+            <p className="text-[10px] text-gray-300 font-bold">총 가격: {currentPriceRaw.toLocaleString()}원</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-50">
+            <div className="space-y-1">
+              <p className="text-[10px] text-gray-400 font-bold">역대 최저가 ({unitLabel})</p>
+              <p className="text-lg font-black text-purple-600">
+                {allTimeLow > 0 ? `${Math.floor(allTimeLow).toLocaleString()}원` : "-"}
+              </p>
+            </div>
+            <div className="space-y-1 text-right">
+              <p className="text-[10px] text-gray-400 font-bold">평균가 (3개월/{unitLabel})</p>
+              <p className="text-lg font-black text-gray-800">
+                {avg3Month > 0 ? `${Math.floor(avg3Month).toLocaleString()}원` : "-"}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100">
+          <h3 className="text-sm font-black text-gray-800 mb-6">{unitLabel} 가격 변동 흐름</h3>
+          <div className="h-48 w-full">
+            {processedHistory.length > 0 ? (
+              <Line data={lineData} options={chartOptions} />
+            ) : (
+              <div className="text-center text-gray-300 py-20 text-xs italic">데이터를 분석하고 있습니다...</div>
             )}
-          </>
-        )}
+          </div>
+        </div>
       </main>
     </div>
   );
