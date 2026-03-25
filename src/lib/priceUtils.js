@@ -14,3 +14,11 @@ export const getUnitPrice = (item, productName = "") => {
   const priceNum = Number(item.price_raw?.replace(/[^0-9]/g, "")) || item.price_num || 0;
   return { price: (priceNum / weight) * 100, label: "100g당" };
 };
+// 가격 등급을 계산해주는 함수
+export function calculateGrade(currentPrice, minPrice, avgPrice) {
+  if (!currentPrice || !minPrice || !avgPrice) return '핫딜';
+  if (currentPrice <= minPrice) return '역대급';
+  if (currentPrice <= avgPrice * 0.95) return '대박';
+  if (currentPrice <= avgPrice) return '중박';
+  return '평범';
+}
