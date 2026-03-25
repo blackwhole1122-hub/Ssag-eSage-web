@@ -24,7 +24,6 @@ export default function DealDetail() {
   const router = useRouter();
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [buyUrl, setBuyUrl] = useState(null);
   const [chartData, setChartData] = useState(null);
   const [calculatedGrade, setCalculatedGrade] = useState(null); 
 
@@ -32,28 +31,7 @@ export default function DealDetail() {
     dogdrip: "개드립", fmkorea: "에펨코리아", arca: "아카라이브", clien: "클리앙", ppomppu: "뽐뿌", quasarzone: "퀘이사존", zod: "ZOD", ruliweb: "루리웹"
   };
 
-  useEffect(() => {
-    async function fetchDeal() {
-      const { data, error } = await supabase.from('hotdeals').select('*').eq('id', id).single();
-      if (!error) setDeal(data);
-      setLoading(false);
-    }
-    fetchDeal();
-  }, [id]);
-
-  useEffect(() => {
-    async function convertLink() {
-      const shopUrl = deal?.shop_url || deal?.url;
-      if (!shopUrl) { setBuyUrl(deal?.url || ''); return; }
-      if (!shopUrl.includes('coupang')) { setBuyUrl(shopUrl); return; }
-      try {
-        const res = await fetch(`/api/coupang?url=${encodeURIComponent(shopUrl)}`);
-        const data = await res.json();
-        setBuyUrl(data.deeplink || shopUrl);
-      } catch { setBuyUrl(shopUrl); }
-    }
-    if (deal) convertLink();
-  }, [deal]);
+  
 
   useEffect(() => {
     async function fetchGraphData() {
@@ -210,9 +188,17 @@ export default function DealDetail() {
           )}
         </div>
 
-        <a href={buyUrl || deal.url} target="_blank" rel="noopener noreferrer" className="block bg-blue-600 text-white text-center font-bold py-4 rounded-2xl shadow-sm hover:bg-blue-700 transition-colors">
-          구매하러 가기 →
-        </a>
+        {/* 모바일 화면 하단에 딱 붙는 예쁜 구매 버튼 */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t md:static md:bg-transparent md:border-t-0 md:p-0 mt-4">
+          <a 
+            href={`/api/out?url=${encodeURIComponent(deal.shop_url || deal.url)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full max-w-2xl mx-auto bg-red-500 hover:bg-red-600 text-white text-center font-bold text-lg py-4 rounded-xl shadow-lg transition-colors"
+          >
+            🛒 쇼핑몰로 이동하여 구매하기
+          </a>
+        </div>
       </main>
     </div>
   );
