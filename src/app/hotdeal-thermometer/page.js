@@ -132,7 +132,8 @@ export default function HotdealThermometer() {
                         >
                           <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0">
                             <img 
-                              src={`https://blackwhole1122-hub.supabase.co/storage/v1/object/public/thermometer/${item.slug}.png`}
+                              // 이 부분을 bpoerueomemrufjoxrej 로 교체
+                              src={`https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/${item.slug}.png`}
                               className="w-8 h-8 object-contain group-hover:scale-110 transition-transform"
                               onError={(e) => { e.target.src = '/images/default-icon.png'; }}
                               alt={item.group_name}
