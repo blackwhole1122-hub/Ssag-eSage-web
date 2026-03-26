@@ -14,40 +14,62 @@ export default function AdminBlogPage() {
   const [newCatSlug, setNewCatSlug] = useState('');
   const [catSaving, setCatSaving] = useState(false);
 
-  useEffect(() => { 
-    const checkAuth = async () => {
+  // 1. 페이지 로드 시 실행되는 로직
+  useEffect(() => {
+    const initAdmin = async () => {
+      // 세션 체크
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/admin'); return; }
-      fetchData();
+      if (!session) { 
+        router.push('/admin'); 
+        return; 
+      } 
+      // 데이터 불러오기
+      await fetchData(); 
     };
-    checkAuth();
+
+    initAdmin();
   }, [router]);
 
+  // 2. 데이터 가져오기 공통 함수
   async function fetchData() {
     setLoading(true);
-    const [postsRes, catsRes] = await Promise.all([
-      supabase.from('blog_posts').select('*').order('created_at', { ascending: false }),
-      supabase.from('blog_categories').select('*').order('sort_order', { ascending: true }),
-    ]);
-    if (postsRes.data) setPosts(postsRes.data);
-    if (catsRes.data) setCategories(catsRes.data);
-    setLoading(false);
+    try {
+      const [postsRes, catsRes] = await Promise.all([
+        supabase.from('blog_posts').select('*').order('created_at', { ascending: false }),
+        supabase.from('blog_categories').select('*').order('id', { ascending: true }),
+      ]);
+      
+      if (postsRes.data) setPosts(postsRes.data);
+      if (catsRes.data) setCategories(catsRes.data);
+    } catch (err) {
+      console.error("데이터 로딩 실패:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  // ✅ 카테고리 추가 로직
+  // 3. 카테고리 추가 로직
   async function addCategory() {
     if (!newCatName.trim()) return alert('카테고리 이름을 입력하세요');
     const slug = newCatSlug.trim() || newCatName.trim().toLowerCase().replace(/[^a-z0-9가-힣\s-]/g, '').replace(/\s+/g, '-');
-    const maxOrder = categories.length > 0 ? Math.max(...categories.map(c => c.sort_order || 0)) : 0;
+    
     setCatSaving(true);
     const { data, error } = await supabase.from('blog_categories')
-      .insert({ name: newCatName.trim(), slug, sort_order: maxOrder + 1 }).select().single();
+      .insert({ name: newCatName.trim(), slug })
+      .select().single();
+      
     setCatSaving(false);
-    if (error) { alert(error.code === '23505' ? '이미 같은 슬러그의 카테고리가 있어요!' : `추가 실패: ${error.message}`); return; }
-    if (data) { setCategories(prev => [...prev, data]); setNewCatName(''); setNewCatSlug(''); }
+
+    if (error) { 
+      alert(error.code === '23505' ? '이미 같은 슬러그의 카테고리가 있어요!' : `추가 실패: ${error.message}`); 
+    } else if (data) { 
+      setCategories(prev => [...prev, data]); 
+      setNewCatName(''); 
+      setNewCatSlug(''); 
+    }
   }
 
-  // ✅ 게시 상태 토글 (예약 포함)
+  // 4. 게시 상태 토글
   async function togglePublish(post) {
     const { error } = await supabase.from('blog_posts')
       .update({ published: !post.published, updated_at: new Date().toISOString() })
@@ -55,6 +77,7 @@ export default function AdminBlogPage() {
     if (!error) setPosts(prev => prev.map(p => (p.id === post.id ? { ...p, published: !p.published } : p)));
   }
 
+  // 5. 글 삭제
   async function deletePost(post) {
     if (!confirm(`"${post.title}" 글을 삭제할까요?`)) return;
     const { error } = await supabase.from('blog_posts').delete().eq('id', post.id);
@@ -69,7 +92,7 @@ export default function AdminBlogPage() {
     return { label: '게시됨', color: 'bg-green-100 text-green-700' };
   };
 
-  if (loading) return <div className="p-20 text-center text-gray-400">데이터를 불러오는 중... ⏳</div>;
+  if (loading) return <div className="p-20 text-center text-gray-400 font-bold">블로그 정보 불러오는 중... ⏳</div>;
 
   return (
     <div className="max-w-4xl mx-auto bg-gray-50 min-h-screen pb-10">
@@ -79,7 +102,6 @@ export default function AdminBlogPage() {
           <h1 className="text-lg font-bold text-gray-800">📝 블로그 관리</h1>
         </div>
         <div className="flex items-center gap-2">
-          {/* ✅ 카테고리 설정 버튼 활성화 */}
           <button onClick={() => setShowCategoryManager(!showCategoryManager)}
             className={`text-xs px-4 py-2 rounded-full font-bold transition-colors ${showCategoryManager ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
             🏷️ 카테고리 설정
@@ -92,9 +114,8 @@ export default function AdminBlogPage() {
       </header>
 
       <main className="p-4 flex flex-col gap-6">
-        {/* ✅ 카테고리 관리창 (활성화 시 보임) */}
         {showCategoryManager && (
-          <div className="bg-white rounded-3xl shadow-sm border border-orange-100 p-6 animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="bg-white rounded-3xl shadow-sm border border-orange-100 p-6">
             <h2 className="text-sm font-bold text-gray-700 mb-4">🏷️ 카테고리 추가/관리</h2>
             <div className="flex items-center gap-2 mb-4">
               <input type="text" value={newCatName} onChange={e => setNewCatName(e.target.value)} placeholder="이름 (예: 리뷰)"
@@ -111,8 +132,10 @@ export default function AdminBlogPage() {
                 <div key={cat.id} className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-100 rounded-full">
                   <span className="text-xs font-bold text-gray-700">{cat.name}</span>
                   <button onClick={async () => {
-                    if(confirm('삭제할까요?')) await supabase.from('blog_categories').delete().eq('id', cat.id);
-                    fetchData();
+                    if(confirm('삭제할까요?')) {
+                      await supabase.from('blog_categories').delete().eq('id', cat.id);
+                      fetchData();
+                    }
                   }} className="text-red-400 text-xs hover:text-red-600">✕</button>
                 </div>
               ))}
@@ -120,7 +143,6 @@ export default function AdminBlogPage() {
           </div>
         )}
 
-        {/* 포스트 리스트 */}
         <div className="flex flex-col gap-4">
           {posts.map(post => {
             const status = getStatusInfo(post);
@@ -137,7 +159,6 @@ export default function AdminBlogPage() {
                       <span className="text-[10px] text-gray-400 font-mono">/{post.slug}</span>
                     </div>
                   </div>
-                  {/* ✅ 예약/게시 토글 버튼 활성화 */}
                   <button onClick={() => togglePublish(post)} className={`text-[10px] font-black px-3 py-1.5 rounded-full transition-all shadow-sm ${status.color}`}>
                     {status.label}
                   </button>
@@ -156,6 +177,7 @@ export default function AdminBlogPage() {
               </div>
             );
           })}
+          {posts.length === 0 && <p className="text-center text-gray-300 py-10">작성된 글이 없습니다. 첫 글을 작성해 보세요! ✍️</p>}
         </div>
       </main>
     </div>

@@ -39,24 +39,23 @@ export default function Home() {
     if (error) {
       console.error('데이터 불러오기 실패:', error);
     } else {
+      // ✅ 중복 제거 로직을 포함한 상태 업데이트
       setAllDeals(prev => {
         const newData = data || [];
         if (reset) return newData;
 
-        // 🔥 [핵심] 중복 제거 로직 추가
-        // 기존 데이터(prev)와 새 데이터(newData)를 합친 후 ID 기준으로 중복을 걸러냅니다.
         const combined = [...prev, ...newData];
-        const uniqueData = combined.filter((item, index, self) =>
-          index === self.findIndex((t) => t.id === item.id)
-        );
-        return uniqueData;
+        // Map을 사용해서 ID 기준으로 중복을 가장 확실하게 제거할게
+        return Array.from(new Map(combined.map(item => [item.id, item])).values());
       });
+
       setHasMore((data || []).length === 20);
     }
 
+    // 로딩 상태 해제
     if (pageNum === 0) setLoading(false);
     else setLoadingMore(false);
-  }, [sourceFilter, searchQuery]);
+  }, [sourceFilter, searchQuery]); // 의존성 배열 깔끔하게 마감
 
   // 2. 기준 통계 데이터 로드 및 초기 페칭
   useEffect(() => {
@@ -92,15 +91,13 @@ export default function Home() {
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        // loadingMore가 true일 때는 아예 실행되지 않도록 막기
-        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
-          setPage(prev => {
-            const nextPage = prev + 1;
-            fetchDeals(nextPage);
-            return nextPage;
-          });
-        }
-      },
+  if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+    // 🔥 prev 값을 안전하게 참조하여 다음 페이지 호출
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchDeals(nextPage);
+  }
+},
       { threshold: 0.5 }
     );
     if (observerRef.current) observer.observe(observerRef.current);
@@ -299,7 +296,13 @@ export default function Home() {
               )}
               
               <div className="w-20 h-20 flex-shrink-0 rounded-xl overflow-hidden bg-gray-100">
-                <img src={deal.image || '/default-image.png'} alt={deal.title} className="w-full h-full object-cover" />
+                <img 
+                  src={deal.image || '/default-image.png'} 
+                  alt={deal.title} 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer" // 👈 이걸 넣어보세요!
+                  loading="lazy" // 성능을 위해 지연 로딩도 추가하면 좋음
+                />
               </div>
 
               <div className="flex-1 min-w-0">
