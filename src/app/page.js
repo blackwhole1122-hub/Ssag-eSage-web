@@ -178,7 +178,7 @@ export default function Home() {
         {/* 1. 헤더 */}
         <header className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
           <div className="flex items-center gap-3">
-            {/* 1. 싸게사게 (메인 로고, 크기 h-11로 시원하게!) */}
+            {/* 1. 싸게사게 (메인 로고 이미지, 강조) */}
             <a href="/" className="flex items-center ml-1">
               <img 
                 src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo.png" 
@@ -187,28 +187,20 @@ export default function Home() {
               />
             </a>
 
-            {/* 구분선 (두 로고 사이를 깔끔하게 분리) */}
-            <div className="w-px h-5 bg-gray-200 mx-1"></div> 
+            {/* 구분선 */}
+            <div className="w-px h-5 bg-gray-200 mx-3"></div> 
 
-            {/* 2. 메뉴 (핫딜온도계 이미지 + 정보모음 텍스트) */}
+            {/* 2. 메뉴 (텍스트로 통일하여 깔끔하게) */}
             <nav className="flex items-center gap-4">
-              {/* ✅ 텍스트 대신 'logo2' 이미지를 사용하여 디자인 통일 */}
-              <a href="/hotdeal-thermometer" className="flex items-center opacity-80 hover:opacity-100 transition-opacity">
-                <img 
-                  src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo2.png" 
-                  alt="핫딜온도계" 
-                  // 싸게사게 로고보다 살짝 작게 (h-9) 설정해서 밸런스를 맞췄어
-                  className="h-9 w-auto object-contain" 
-                />
+              <a href="/hotdeal-thermometer" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
+                핫딜온도계
               </a>
-              {/* 정보모음도 텍스트로 시원하게 (폰트 크기와 색상 조절) */}
               <a href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
                 정보모음
               </a>
             </nav>
           </div>
 
-          {/* 우측 상단은 필요하다면 로그인 버튼 등을 넣을 수 있지만, 현재는 공백 */}
           <div className="md:w-32"></div> 
         </header>
 

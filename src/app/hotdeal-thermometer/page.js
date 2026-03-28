@@ -124,43 +124,43 @@ useEffect(() => {
         {/* ✨ 메인페이지와 크기를 맞춘 상단바 */}
 {/* ✨ 메인페이지급 볼륨 + 주인공 교체 상단바 */}
 {/* ✨ 메인페이지급 볼륨 + [핫딜온도계 | 싸게사게] 정렬 상단바 */}
-<header className="p-4 flex items-center justify-between bg-white border-b sticky top-0 z-30 shadow-sm">
-  <div className="flex items-center gap-3">
-    
-    {/* 1. 핫딜온도계 로고 (주인공! 맨 앞으로) */}
-    <div className="flex items-center ml-1">
-      <img 
-        src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo2.png" 
-        alt="핫딜온도계" 
-        // 메인페이지 로고와 높이를 맞춰서 시원하게! (h-12)
-        className="h-12 w-auto object-contain" 
-      />
-    </div>
+{/* ✨ 핫딜온도계가 주인공! [핫딜온도계 이미지 | 싸게사게 | 정보모음] 순서 상단바 */}
+        <header className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
+          <div className="flex items-center gap-3">
+            
+            {/* 1. 핫딜온도계 (현재 페이지의 주인공이므로 제일 앞으로!) */}
+            <a href="/hotdeal-thermometer" className="flex items-center ml-1">
+              <img 
+                src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo2.png" 
+                alt="핫딜온도계" 
+                className="h-11 w-auto object-contain" 
+              />
+            </a>
 
-    {/* 구분선 (두 로고 사이를 깔끔하게 분리) */}
-    <div className="w-px h-6 bg-gray-200 mx-1"></div> 
+            {/* 구분선 */}
+            <div className="w-px h-5 bg-gray-200 mx-3"></div> 
 
-    {/* 2. 싸게사게 로고 (보조 역할로 뒤로 이동) */}
-    <a href="/" className="flex items-center opacity-70 hover:opacity-100 transition-opacity">
-      <img 
-        src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo.png" 
-        alt="싸게사게" 
-        // 주인공보다 살짝 작게(h-9) 설정해서 밸런스를 맞췄어
-        className="h-9 w-auto object-contain" 
-      />
-    </a>
-  </div>
+            {/* 2. 다른 메뉴들 (싸게사게, 정보모음은 텍스트로 서포트) */}
+            <nav className="flex items-center gap-4">
+              <a href="/" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
+                싸게사게
+              </a>
+              <a href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
+                정보모음
+              </a>
+            </nav>
+          </div>
 
-  {/* 우측 상단 버튼 (뒤로가기 또는 홈) */}
-  <div className="flex gap-2">
-    <button 
-      onClick={() => window.history.back()} 
-      className="text-gray-500 text-xs font-bold bg-gray-50 px-4 py-2 rounded-full hover:bg-gray-100 transition-colors"
-    >
-      뒤로가기
-    </button>
-  </div>
-</header>
+          {/* 3. 우측 상단 버튼 (뒤로가기) */}
+          <div className="flex gap-2">
+            <button 
+              onClick={() => window.history.back()} 
+              className="text-gray-500 text-xs font-bold bg-gray-50 px-4 py-2 rounded-full hover:bg-gray-100 transition-colors"
+            >
+              뒤로가기
+            </button>
+          </div>
+        </header>
         <div className="px-4 pb-3">
           <input 
             type="text" 
