@@ -41,7 +41,7 @@ export const KEYWORD_GROUPS = {
     { group: "다우니", slug: "downy", keywords: ["다우니"] },
   ],
   "가전/디지털": [
-    { group: "PS5 Pro", slug: "ps5-pro", keywords: ["PS5 Pro", "플스5 프로"] },
+    { group: "PS5 Pro", slug: "ps5-pro", keywords: ["PS5 Pro", "플스5 프로", "ps5 pro"] },
   ],
   "상품권": [
     { group: "컬쳐랜드", slug: "cultureland", keywords: ["컬쳐랜드"] },
