@@ -38,15 +38,30 @@ function markdownToHtml(md) {
 async function getPost(slug) {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const { data } = await supabase
+  // 1️⃣ 한글 슬러그 정규화 (NFC로 통일)
+  const normalizedSlug = decodeURIComponent(slug).normalize('NFC');
+
+  const { data, error } = await supabase
     .from('blog_posts')
     .select('*, blog_categories(name, slug)')
-    .eq('slug', slug)
+    .eq('slug', normalizedSlug) // 정규화된 슬러그 사용
     .eq('published', true)
-    .single();
+    .maybeSingle(); // .single() 대신 .maybeSingle()을 써야 에러 로그를 보기 편해
+
+  if (error) {
+    console.error("❌ Supabase 에러:", error.message);
+    return null;
+  }
 
   if (!data) return null;
-  if (data.scheduled_at && new Date(data.scheduled_at) > new Date()) return null;
+
+  // 2️⃣ 시간 오차 방지 (서버 시간차 고려해서 1분 정도 여유를 줌)
+  if (data.scheduled_at) {
+    const scheduledDate = new Date(data.scheduled_at);
+    const now = new Date();
+    if (scheduledDate > new Date(now.getTime() + 60000)) return null; 
+  }
+
   return data;
 }
 
