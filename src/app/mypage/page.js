@@ -11,6 +11,28 @@ export default function MyPage() {
   const [newKeyword, setNewKeyword] = useState('');
   const [authCode, setAuthCode] = useState(''); // 🌟 인증코드 상태
   const router = useRouter();
+  const handleDisconnectTelegram = async () => {
+  const confirmDisconnect = confirm("정말 텔레그램 연동을 해제하시겠어요? 😢 더 이상 핫딜 알림을 받을 수 없게 됩니다.");
+  
+  if (confirmDisconnect) {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ 
+        telegram_chat_id: null,
+        auth_code: null,
+        auth_code_expires_at: null 
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      alert('연동 해제 중 오류가 발생했습니다.');
+    } else {
+      setTelegramId(null); // 상태 초기화
+      setAuthCode('');    // 발급 중이던 코드도 초기화
+      alert('텔레그램 연동이 해제되었습니다! 📴');
+    }
+  }
+};
 
   // 1. 유저 정보 및 키워드/프로필 불러오기
   const fetchData = useCallback(async (userId) => {
@@ -109,48 +131,51 @@ export default function MyPage() {
           </div>
         </div>
 
-        {/* 🌟 2. 텔레그램 연동 영역 (여기가 핵심!) */}
-        <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-10 text-center">
-          <p className="text-xs text-gray-400 mb-2">텔레그램 봇 연동 상태</p>
-          
-          {telegramId ? (
-            <p className="text-sm font-bold text-green-500">연동 완료 ✅ (알림 수신 가능)</p>
-          ) : (
-            <div>
-              {authCode ? (
-                <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 animate-fade-in">
-                  <p className="text-xs text-blue-400 mb-2 font-bold uppercase tracking-wider">Your Auth Code</p>
-                  <p className="text-4xl font-black text-blue-600 tracking-[0.2em] mb-4">{authCode}</p>
-                  
-                  {/* 봇으로 바로가는 버튼 추가 */}
-                  <a 
-                    href={`https://t.me/유저님이_만든_봇_아이디?start=${authCode}`} // 👈 여기에 봇 아이디 입력!
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-block bg-blue-600 text-white px-8 py-3 rounded-xl font-bold text-sm shadow-md hover:bg-blue-700 transition-all active:scale-95 mb-4"
-                  >
-                    텔레그램에서 인증하기 🚀
-                  </a>
-                  
-                  <p className="text-[11px] text-gray-400 leading-relaxed">
-                    버튼을 누르면 텔레그램 앱이 열립니다. <br />
-                    봇에게 <span className="font-bold text-blue-600">/인증 {authCode}</span>를 보내주세요!
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="text-sm font-bold text-red-400 mb-3">연동 전 ❌</p>
-                  <button 
-                    onClick={generateAuthCode}
-                    className="text-xs bg-white border border-gray-200 px-5 py-2.5 rounded-xl font-bold hover:bg-gray-100 transition-colors shadow-sm"
-                  >
-                    인증번호 발급받기
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+        {/* 🌟 텔레그램 연동 영역 최종본 */}
+<div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-10 text-center">
+  <p className="text-xs text-gray-400 mb-2 font-bold uppercase tracking-wider">텔레그램 알림 설정</p>
+  
+  {telegramId ? (
+    <div className="animate-fade-in">
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-sm font-bold text-green-500 flex items-center gap-1">
+          <span className="text-lg">✅</span> 연동 완료
+        </p>
+        <p className="text-[10px] text-gray-400 mb-4">Chat ID: {telegramId}</p>
+        
+        {/* 연동 해제 버튼 */}
+        <button 
+          onClick={handleDisconnectTelegram}
+          className="text-[11px] text-gray-400 hover:text-red-400 underline underline-offset-4 transition-colors"
+        >
+          연동 해제하기
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div>
+      {authCode ? (
+        <div className="animate-pulse">
+          <p className="text-3xl font-black text-blue-600 tracking-widest mb-2">{authCode}</p>
+          <a 
+            href={`https://t.me/유저님봇아이디?start=${authCode}`}
+            target="_blank" 
+            className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs mb-3"
+          >
+            텔레그램에서 인증하기 🚀
+          </a>
         </div>
+      ) : (
+        <button 
+          onClick={generateAuthCode}
+          className="text-xs bg-white border border-gray-200 px-5 py-2.5 rounded-xl font-bold hover:bg-gray-100 shadow-sm"
+        >
+          인증번호 발급받기
+        </button>
+      )}
+    </div>
+  )}
+</div>
 
         {/* 3. 하단 버튼 (기존 코드 유지) */}
         <div className="flex items-center justify-between border-t pt-6">
