@@ -5,15 +5,27 @@ export async function POST(req) {
   try {
     const body = await req.json();
     const { message } = body;
+
+    // 텍스트 메시지가 아니면 무시
     if (!message || !message.text) return NextResponse.json({ ok: true });
 
     const chatId = message.chat.id;
-    const text = message.text;
+    const text = message.text.trim();
 
-    if (text.startsWith('/인증')) {
-      const code = text.trim().split(' ')[1];
+    // 1. '/인증' 또는 '/start'로 시작하는지 확인
+    if (text.startsWith('/인증') || text.startsWith('/start')) {
+      const parts = text.split(' ');
+      const code = parts[1]; // 두 번째 단어(인증번호) 추출
 
-      // 1. DB에서 코드 찾기 (일단 시간 체크 빼고 코드만 맞는지 확인!)
+      // 번호가 없을 때 (그냥 /start 만 눌렀을 때)
+      if (!code) {
+        await sendMsg(chatId, "반가워요! 웹사이트에서 발급받은 인증번호를 입력해주세요.\n예: /인증 123456");
+        return NextResponse.json({ ok: true });
+      }
+
+      console.log('🔍 인증 시도 코드:', code);
+
+      // 2. DB에서 해당 코드를 가진 유저 찾기
       const { data: profile, error: selectError } = await supabase
         .from('profiles')
         .select('id')
@@ -21,7 +33,7 @@ export async function POST(req) {
         .single();
 
       if (profile) {
-        // 2. 일치하면 Chat ID 저장하고 코드 비우기
+        // 3. 일치하면 Chat ID 저장하고 인증 정보 초기화
         const { error: updateError } = await supabase
           .from('profiles')
           .update({ 
@@ -32,22 +44,24 @@ export async function POST(req) {
           .eq('id', profile.id);
 
         if (updateError) {
-          // DB 업데이트 실패 시 텔레그램으로 에러 알림
-          await sendMsg(chatId, `❌ DB 저장 실패: ${updateError.message}`);
+          await sendMsg(chatId, `❌ 저장 실패: ${updateError.message}`);
         } else {
-          await sendMsg(chatId, "✅ 인증 성공! 이제 마이페이지를 새로고침 해보세요.");
+          await sendMsg(chatId, "✅ 연동 성공! 이제 핫딜 알림을 보내드릴게요.");
         }
       } else {
-        await sendMsg(chatId, "❌ 코드가 틀렸거나 이미 사용되었습니다.");
+        // 코드가 없거나 틀렸을 때
+        await sendMsg(chatId, "❌ 코드가 틀렸거나 만료되었습니다. 번호를 다시 확인해주세요.");
       }
     }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
+    console.error('🔥 Webhook 에러:', err);
     return NextResponse.json({ ok: true });
   }
 }
 
-// 메시지 전송 함수 분리
+// 텔레그램 메시지 전송 함수
 async function sendMsg(chatId, text) {
   await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: 'POST',
