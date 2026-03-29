@@ -54,16 +54,23 @@ export default function MyPage() {
     
     const { error } = await supabase
       .from('profiles')
-      .update({ auth_code: code, auth_code_expires_at: expiresAt })
-      .eq('id', user.id);
+      .upsert({ 
+        id: user.id, // ID는 반드시 포함해야 함!
+        auth_code: code, 
+        auth_code_expires_at: expiresAt,
+        // 삭제하셨으니 닉네임도 다시 넣어주면 좋아요
+        display_name: user.user_metadata?.display_name || '회원'
+      });
 
     if (error) {
+      console.error('코드 생성 에러:', error.message);
       alert('코드 생성 실패 😢');
     } else {
       setAuthCode(code);
+      // 🌟 방금 만든 데이터를 다시 불러오기 위해 fetchData 실행
+      await fetchData(user.id);
     }
   };
-
   // ... (키워드 추가/삭제/회원탈퇴 함수는 기존과 동일) ...
   const addKeyword = async () => { /* 기존 코드 유지 */ };
   const deleteKeyword = async (id) => { /* 기존 코드 유지 */ };
