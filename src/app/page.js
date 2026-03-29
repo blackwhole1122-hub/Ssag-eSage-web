@@ -170,19 +170,36 @@ useEffect(() => {
 
   // 등급 계산기
   const getDealGrade = (deal) => {
-    let matchedSlug = deal.group_slug;
-    if (!matchedSlug) {
-      const allGroups = Object.values(KEYWORD_GROUPS).flat();
-      const matchGroup = allGroups.find(g => g.keywords.some(k => {
+    // 1. 우리가 관리하는 모든 그룹(slug) 리스트 추출
+    const allGroups = Object.values(KEYWORD_GROUPS).flat();
+    const managedSlugs = allGroups.map(g => g.slug);
+
+    // 2. 이 딜이 어떤 그룹에 속하는지 결정
+    let matchedGroup = null;
+
+    // 우선 DB에 저장된 slug가 우리가 관리하는 리스트에 있는지 확인
+    if (deal.group_slug && managedSlugs.includes(deal.group_slug)) {
+      matchedGroup = allGroups.find(g => g.slug === deal.group_slug);
+    } 
+    
+    // DB에 없거나 관리 대상이 아니면 타이틀로 한 번 더 검색
+    if (!matchedGroup) {
+      matchedGroup = allGroups.find(g => g.keywords.some(k => {
         const normTitle = deal.title?.replace(/\s/g, '') || "";
-        return k.split(' ').every(w => deal.title?.includes(w) || normTitle.includes(w.replace(/\s/g, '')));
+        const keyword = k.replace(/\s/g, '');
+        // 공백 제거하고 포함 여부 확인 (더 정확한 매칭)
+        return normTitle.includes(keyword);
       }));
-      if (matchGroup) matchedSlug = matchGroup.slug;
     }
 
-    const benchmark = priceStats[matchedSlug];
+    // 3. 🌟 핵심: 관리 대상 그룹이 아니면 여기서 바로 탈출! (카드 안 보임)
+    if (!matchedGroup) return null;
+
+    // 4. 기준가(benchmark) 데이터가 있는지 확인
+    const benchmark = priceStats[matchedGroup.slug];
     if (!benchmark) return null;
 
+    // 5. 가격 계산 및 등급 판정
     const currentPriceRaw = parseInt(deal.price?.replace(/[^\d]/g, '') || "0");
     const { price: currentUnitPrice, label: unitLabel } = getUnitPrice({ price_num: currentPriceRaw }, deal.title);
 
