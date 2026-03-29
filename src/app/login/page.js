@@ -93,7 +93,7 @@ export default function Login() {
           {isSignUp && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                닉네임 (한글 2~6자, 키입력이 한글로 되어있어야 해요.)
+                닉네임 (한글 2~6자, 로봇체크 오류나면 새로고침 해주세요)
               </label>
               <input
                 type="text"

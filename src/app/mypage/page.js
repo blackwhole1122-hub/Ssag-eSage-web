@@ -93,10 +93,44 @@ export default function MyPage() {
       await fetchData(user.id);
     }
   };
-  // ... (키워드 추가/삭제/회원탈퇴 함수는 기존과 동일) ...
-  const addKeyword = async () => { /* 기존 코드 유지 */ };
-  const deleteKeyword = async (id) => { /* 기존 코드 유지 */ };
-  const handleWithdrawal = async () => { /* 기존 코드 유지 */ };
+ // 키워드 추가 함수
+  const addKeyword = async () => {
+    // 1. 공백 검사
+    if (!newKeyword.trim()) {
+      alert('키워드를 입력해주세요! ⌨️');
+      return;
+    }
+
+    // 2. 중복 검사 (이미 등록된 키워드인지 확인)
+    if (keywords.some(kw => kw.keyword === newKeyword.trim())) {
+      alert('이미 등록된 키워드예요! 😊');
+      setNewKeyword('');
+      return;
+    }
+
+    try {
+      // 3. Supabase 'user_keywords' 테이블에 저장
+      const { error } = await supabase
+        .from('user_keywords')
+        .insert([
+          { 
+            user_id: user.id, 
+            keyword: newKeyword.trim() 
+          }
+        ]);
+
+      if (error) throw error;
+
+      // 4. 성공 시 입력창 비우고 목록 새로고침
+      setNewKeyword('');
+      await fetchData(user.id); // 최신 목록 다시 불러오기
+      alert('키워드가 추가되었습니다! ✅');
+
+    } catch (error) {
+      console.error('키워드 추가 에러:', error.message);
+      alert('키워드 추가에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
 
   if (loading) return <div className="p-10 text-center text-gray-400">확인 중... ⏳</div>;
 
