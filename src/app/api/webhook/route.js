@@ -52,7 +52,8 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ ok: true }); // 에러가 나도 텔레그램에겐 성공했다고 해야 무한 재전송을 안 합니다.
+    // 🌟 이 로그 한 줄이 범인을 잡아줍니다!
+    console.error("🔥 봇 에러 발생:", err); 
+    return NextResponse.json({ ok: true });
   }
 }
