@@ -16,6 +16,35 @@ export default function Home() {
   const [page, setPage] = useState(0);
   const [priceStats, setPriceStats] = useState({});
   const observerRef = useRef(null);
+  const [user, setUser] = useState(null);
+
+  // useEffect 안에 유저 세션 확인 로직 추가
+useEffect(() => {
+  // 1. 처음 들어왔을 때 세션 확인
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setUser(session?.user ?? null);
+  });
+
+  // 2. 로그인/로그아웃 등 상태 변화가 생기면 바로 반영
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null);
+  });
+
+  return () => subscription.unsubscribe();
+}, []);
+
+// ... (중략) ...
+
+// 헤더의 로그인 부분 수정
+{user ? (
+  <a href="/mypage" className="text-sm font-medium text-blue-600 font-bold">
+    내 정보
+  </a>
+) : (
+  <a href="/login" className="text-sm font-medium text-gray-500 hover:text-gray-800">
+    로그인
+  </a>
+)}
 
   // 1. 핫딜 목록 페칭 함수
   const fetchDeals = useCallback(async (pageNum = 0, reset = false) => {
@@ -175,10 +204,11 @@ export default function Home() {
       {/* 🟢 상단 고정 영역 (헤더 + 검색 + 필터) */}
       <div className="sticky top-0 z-20 shadow-sm">
         
+{/* 1. 헤더 */}
         {/* 1. 헤더 */}
         <header className="bg-white border-b p-4 flex items-center justify-between sticky top-0 z-20 shadow-sm">
           <div className="flex items-center gap-3">
-            {/* 1. 싸게사게 (메인 로고 이미지, 강조) */}
+            {/* ... 로고 및 메뉴 생략 ... */}
             <a href="/" className="flex items-center ml-1">
               <img 
                 src="https://bpoerueomemrufjoxrej.supabase.co/storage/v1/object/public/thermometer/logo.png" 
@@ -186,22 +216,25 @@ export default function Home() {
                 className="h-11 w-auto object-contain" 
               />
             </a>
-
-            {/* 구분선 */}
             <div className="w-px h-5 bg-gray-200 mx-3"></div> 
-
-            {/* 2. 메뉴 (텍스트로 통일하여 깔끔하게) */}
             <nav className="flex items-center gap-4">
-              <a href="/hotdeal-thermometer" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
-                핫딜온도계
-              </a>
-              <a href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
-                정보모음
-              </a>
+              <a href="/hotdeal-thermometer" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">핫딜온도계</a>
+              <a href="/blog" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">정보모음</a>
             </nav>
           </div>
 
-          <div className="md:w-32"></div> 
+          {/* 🌟 수정된 로그인/닉네임 표시 영역 */}
+          <div className="flex items-center gap-2">
+            {user ? (
+              <a href="/mypage" className="text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors">
+                {user.user_metadata?.display_name || "회원"}님
+              </a>
+            ) : (
+              <a href="/login" className="text-sm font-medium text-gray-500 hover:text-gray-800 transition-colors">
+                로그인
+              </a>
+            )}
+          </div>
         </header>
 
         {/* 2. 검색창 */}
