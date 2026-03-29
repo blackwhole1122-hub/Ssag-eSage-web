@@ -2,33 +2,42 @@
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { Turnstile } from '@marsidev/react-turnstile'; // 👈 1. 라이브러리 추가
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false); // 로딩 상태 추가
+  const [captchaToken, setCaptchaToken] = useState(''); // 👈 2. 토큰 상태 추가
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    console.log("로그인 시도 시작..."); // 확인용 1
+    
+    // 👈 3. 토큰 체크 로직 추가
+    if (!captchaToken) {
+      alert("로봇 체크를 완료해 주세요! 🤖");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
+        options: {
+          captchaToken: captchaToken // 👈 4. 로그인 시 토큰 같이 보내기
+        }
       });
 
       if (error) {
-  alert('로그인 실패: ' + error.message);
-} else {
-  console.log("로그인 성공! 쿠키 장부 들고 대시보드로 이동합니다.");
-  
-  // ✅ router.push 대신 이걸 쓰세요. 
-  // 문지기(미들웨어)에게 '나 열쇠 생겼어!'라고 새로고침하며 보여주는 확실한 방법입니다.
-  window.location.href = '/admin/dashboard';
-}
+        alert('로그인 실패: ' + error.message);
+        // 실패 시 캡차 만료될 수 있으니 새로고침 권장
+      } else {
+        console.log("관리자 인증 성공!");
+        window.location.href = '/admin/dashboard';
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -37,11 +46,11 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4 font-sans">
       <form onSubmit={handleLogin} className="bg-white p-8 rounded-3xl shadow-lg w-full max-w-sm border border-gray-200">
         <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">싸게사게 관리자 🦀</h1>
         
-        <div className="flex flex-col gap-3 mb-6">
+        <div className="flex flex-col gap-3 mb-4">
           <input 
             type="email" 
             placeholder="이메일" 
@@ -60,6 +69,14 @@ export default function AdminLogin() {
           />
         </div>
 
+        {/* 🌟 5. 캡차 위젯 추가 */}
+        <div className="flex justify-center mb-6">
+          <Turnstile 
+            siteKey="0x4AAAAAACxeWde3rnX77zxM" 
+            onSuccess={(token) => setCaptchaToken(token)} 
+          />
+        </div>
+
         <button 
           type="submit" 
           disabled={isSubmitting}
@@ -69,10 +86,6 @@ export default function AdminLogin() {
         >
           {isSubmitting ? '로그인 중...' : '관리자 로그인'}
         </button>
-        
-        <p className="text-center text-[10px] text-gray-400 mt-4">
-          계정이 없다면 수파베이스 Authentication에서 생성하세요.
-        </p>
       </form>
     </div>
   );
