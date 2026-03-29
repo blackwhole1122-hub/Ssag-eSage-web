@@ -158,7 +158,7 @@ export default function MyPage() {
         <div className="animate-pulse">
           <p className="text-3xl font-black text-blue-600 tracking-widest mb-2">{authCode}</p>
           <a 
-            href={`https://t.me/유저님봇아이디?start=${authCode}`}
+            href={`tg://resolve?domain=Ssagesage_bot&start=${authCode}`}
             target="_blank" 
             className="inline-block bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs mb-3"
           >
