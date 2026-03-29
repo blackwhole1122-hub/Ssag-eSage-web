@@ -92,16 +92,23 @@ export default function Login() {
           {/* 1. 닉네임 (가입 시에만) */}
           {isSignUp && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">닉네임 (한글 2~6자)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                닉네임 (한글 2~6자, 키입력이 한글로 되어있어야 해요.)
+              </label>
               <input
                 type="text"
                 value={nickname}
                 maxLength={6}
-                onChange={(e) => setNickname(e.target.value.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣]/g, ''))}
+                // 💡 여기서 replace를 빼고 순수하게 값만 업데이트합니다.
+                onChange={(e) => setNickname(e.target.value)} 
                 placeholder="사용하실 닉네임"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
+              {/* 실시간 안내 문구를 추가하면 더 친절해요 */}
+              {isSignUp && nickname && !/^[가-힣]{2,6}$/.test(nickname) && (
+                <p className="text-xs text-red-500 mt-1">한글 2~6자만 가능해요!</p>
+              )}
             </div>
           )}
 
