@@ -93,42 +93,72 @@ export default function MyPage() {
       await fetchData(user.id);
     }
   };
- // 키워드 추가 함수
+  // ... (키워드 추가/삭제/회원탈퇴 함수는 기존과 동일) ...
+ // 1. 키워드 추가 함수 (아까 안 됐던 것)
   const addKeyword = async () => {
-    // 1. 공백 검사
-    if (!newKeyword.trim()) {
-      alert('키워드를 입력해주세요! ⌨️');
-      return;
-    }
-
-    // 2. 중복 검사 (이미 등록된 키워드인지 확인)
-    if (keywords.some(kw => kw.keyword === newKeyword.trim())) {
+    if (!newKeyword.trim()) return;
+    
+    // 중복 체크
+    if (keywords.some(k => k.keyword === newKeyword.trim())) {
       alert('이미 등록된 키워드예요! 😊');
       setNewKeyword('');
       return;
     }
 
-    try {
-      // 3. Supabase 'user_keywords' 테이블에 저장
-      const { error } = await supabase
-        .from('user_keywords')
-        .insert([
-          { 
-            user_id: user.id, 
-            keyword: newKeyword.trim() 
-          }
-        ]);
+    const { error } = await supabase
+      .from('user_keywords')
+      .insert([{ user_id: user.id, keyword: newKeyword.trim() }]);
 
-      if (error) throw error;
-
-      // 4. 성공 시 입력창 비우고 목록 새로고침
+    if (error) {
+      alert('키워드 추가 실패 😢');
+    } else {
       setNewKeyword('');
-      await fetchData(user.id); // 최신 목록 다시 불러오기
-      alert('키워드가 추가되었습니다! ✅');
+      await fetchData(user.id); // 목록 새로고침
+    }
+  };
 
-    } catch (error) {
-      console.error('키워드 추가 에러:', error.message);
-      alert('키워드 추가에 실패했습니다. 잠시 후 다시 시도해주세요.');
+  // 2. 키워드 삭제 함수
+  const deleteKeyword = async (id) => {
+    const { error } = await supabase
+      .from('user_keywords')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      alert('삭제 실패 😢');
+    } else {
+      await fetchData(user.id); // 목록 새로고침
+    }
+  };
+
+  // 3. 회원 탈퇴 함수 (지금 에러 나는 주범!)
+  const handleWithdrawal = async () => {
+    const confirmWithdrawal = confirm(
+      "정말 탈퇴하시겠어요? 😭 등록된 키워드와 알림 설정이 모두 삭제됩니다."
+    );
+
+    if (confirmWithdrawal) {
+      setLoading(true);
+      try {
+        // 프로필 및 관련 데이터 삭제 (RLS 설정에 따라 다를 수 있음)
+        const { error } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', user.id);
+
+        if (error) throw error;
+
+        // 로그아웃 처리 및 홈으로 이동
+        await supabase.auth.signOut();
+        alert('그동안 이용해주셔서 감사합니다. 🙇‍♂️');
+        router.push('/');
+        router.refresh();
+      } catch (error) {
+        alert('탈퇴 처리 중 오류가 발생했습니다.');
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
