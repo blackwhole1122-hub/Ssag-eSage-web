@@ -166,6 +166,17 @@ export default function MyPage() {
 
   return (
     <div className="max-w-2xl mx-auto bg-gray-100 min-h-screen pb-10 p-4 font-sans text-gray-800">
+      
+      {/* 🏠 홈 버튼 추가 영역 */}
+      <div className="flex justify-between items-center mb-2 px-2">
+        <button 
+          onClick={() => router.push('/')}
+          className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition-all font-bold text-sm group"
+        >
+          <span className="text-xl group-hover:-translate-x-1 transition-transform">←</span>
+          <span>싸게사게 홈으로</span>
+        </button>
+      </div>
       <div className="bg-white rounded-3xl shadow-sm p-8 mt-6">
         <h2 className="text-xl font-bold mb-2">🔔 내 핫딜 알림 설정</h2>
         <p className="text-sm text-gray-500 mb-8">
