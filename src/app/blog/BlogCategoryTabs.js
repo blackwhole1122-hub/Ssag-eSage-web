@@ -1,85 +1,85 @@
-'use client';
+'use client' // 🌟 1. 이 컴포넌트는 유저가 클릭하면 반응하는 '클라이언트' 컴포넌트예요.
 
-import { useState, useEffect } from 'react'; // useEffect 추가
+import { useState } from 'react';
 import Link from 'next/link';
 
 export default function BlogCategoryTabs({ posts, categories }) {
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [mounted, setMounted] = useState(false); // 마운트 상태 추가
+  // 🌟 2. 현재 선택된 카테고리 상태 (null이면 '전체')
+  const [activeCategoryId, setActiveCategoryId] = useState(null);
 
-  // 컴포넌트가 브라우저에 나타난 후에만 실행
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const filteredPosts = activeCategory === 'all'
-    ? posts
-    : posts.filter(p => String(p.category_id) === activeCategory);
-
-  function getCategoryName(categoryId) {
-    const cat = categories.find(c => c.id === categoryId);
-    return cat ? cat.name : null;
-  }
+  // 🌟 3. 선택된 카테고리에 맞는 글만 필터링
+  const filteredPosts = activeCategoryId
+    ? posts.filter(post => post.category_id === activeCategoryId)
+    : posts;
 
   return (
-    <>
-      {/* 카테고리 탭 로직 (동일) */}
-      {/* ...생략... */}
+    <div>
+      {/* 🔹 카테고리 탭 (가로 스크롤 가능) */}
+      <nav className="flex gap-2 mb-10 overflow-x-auto pb-2 scrollbar-hide border-b border-gray-100">
+        <button
+          onClick={() => setActiveCategoryId(null)}
+          className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+            activeCategoryId === null
+              ? 'bg-blue-600 text-white shadow-md'
+              : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+          }`}
+        >
+          전체
+        </button>
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => setActiveCategoryId(cat.id)}
+            className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
+              activeCategoryId === cat.id
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800'
+            }`}
+          >
+            {cat.name}
+          </button>
+        ))}
+      </nav>
 
-      {/* 글 목록 */}
-      {filteredPosts.length === 0 ? (
-        <div className="text-center py-20 text-gray-400">
-          <p className="text-4xl mb-3">📝</p>
-          <p className="text-sm">
-            {activeCategory === 'all' ? '아직 게시된 글이 없습니다.' : '이 카테고리에 글이 없습니다.'}
-          </p>
+      {/* 🔹 블로그 글 목록 그리드 */}
+      {filteredPosts.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-7 animate-fade-in">
+          {filteredPosts.map((post) => (
+            <Link 
+              key={post.id} 
+              href={`/blog/${post.slug}`}
+              className="group bg-white rounded-3xl p-7 border border-gray-100 shadow-sm hover:shadow-lg hover:-translate-y-1.5 transition-all duration-300 overflow-hidden flex flex-col"
+            >
+              {/* 이모지 배지 */}
+              <div className="w-16 h-16 flex items-center justify-center bg-gray-50 rounded-2xl text-4xl mb-5 group-hover:scale-110 group-hover:bg-blue-50 transition-all duration-300">
+                {post.emoji || '📝'}
+              </div>
+              
+              {/* 제목 & 설명 */}
+              <h2 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors line-clamp-1">
+                {post.title}
+              </h2>
+              <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed mb-6 flex-1">
+                {post.description}
+              </p>
+              
+              {/* 하단 날짜 정보 */}
+              <div className="text-[11px] text-gray-400 font-medium uppercase tracking-wider pt-4 border-t border-gray-100">
+                {new Date(post.created_at).toLocaleDateString('ko-KR', {
+                    year: 'numeric', month: 'long', day: 'numeric'
+                })}
+              </div>
+            </Link>
+          ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {filteredPosts.map(post => {
-            const catName = getCategoryName(post.category_id);
-            return (
-              <article key={post.id}>
-                <Link
-                  href={`/blog/${post.slug}`}
-                  className="group block bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-blue-200 transition-all"
-                >
-                  <div className="flex items-start gap-4">
-                    <span className="text-3xl flex-shrink-0">{post.emoji || '📝'}</span>
-                    <div className="flex-1 min-w-0">
-                      {catName && (
-                        <span className="inline-block text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full mb-1.5 font-medium">
-                          {catName}
-                        </span>
-                      )}
-                      <h2 className="text-base font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-1.5">
-                        {post.title}
-                      </h2>
-                      {post.description && (
-                        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-2">
-                          {post.description}
-                        </p>
-                      )}
-                      
-                      {/* 🚨 수정 포인트: mounted 되었을 때만 시간 출력 */}
-                      <time className="text-xs text-gray-400">
-                        {mounted && new Date(post.created_at).toLocaleDateString('ko-KR', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
-                      </time>
-                    </div>
-                    <span className="text-gray-300 group-hover:text-blue-400 transition-colors flex-shrink-0 mt-1">
-                      →
-                    </span>
-                  </div>
-                </Link>
-              </article>
-            );
-          })}
+        // 🔹 글이 하나도 없을 때
+        <div className="py-24 text-center text-gray-400 bg-white rounded-3xl border border-gray-100 shadow-sm animate-fade-in">
+          <div className="text-6xl mb-4">😅</div>
+          <p className="font-bold text-gray-600">이 카테고리에는 아직 글이 없어요.</p>
+          <p className="text-sm mt-1">에디터가 열심히 글을 쓰고 있으니 조금만 기다려주세요!</p>
         </div>
       )}
-    </>
+    </div>
   );
 }
