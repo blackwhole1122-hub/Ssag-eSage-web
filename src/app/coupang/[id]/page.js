@@ -82,9 +82,17 @@ export default function CoupangDealDetail() {
           
           <div className="flex flex-col bg-gray-50 p-4 rounded-xl border border-gray-100">
             {deal.original_price > 0 && (
-              <p className="text-sm font-medium text-gray-400 line-through mb-1">
-                정가: {deal.original_price.toLocaleString()}원
-              </p>
+              // 👇 flex로 묶어서 원가와 할인율이 나란히 오게 만듦!
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm font-medium text-gray-400 line-through">
+                  정가: {deal.original_price.toLocaleString()}원
+                </p>
+                {deal.discount_rate > 0 && (
+                  <span className="text-xs font-black text-red-500 bg-red-50 px-2 py-0.5 rounded-md">
+                    ↓ {deal.discount_rate}%
+                  </span>
+                )}
+              </div>
             )}
             <div className="flex items-end gap-2">
               <p className="text-3xl font-black text-red-500">{deal.discount_price.toLocaleString()}<span className="text-xl">원</span></p>
