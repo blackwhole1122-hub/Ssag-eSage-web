@@ -213,7 +213,12 @@ export default function DealDetail() {
 
         {deal.image && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <img src={deal.image} alt={deal.title} referrerPolicy="no-referrer" className="w-full object-contain" />
+            <img
+              src={deal.image}
+              alt={deal.title}
+              referrerPolicy={deal.source === 'arca' ? 'origin' : 'no-referrer'}
+              className="w-full object-contain"
+            />
           </div>
         )}
 
@@ -225,7 +230,7 @@ export default function DealDetail() {
                dangerouslySetInnerHTML={{ 
                  __html: deal.content
                    // 1. 과거 데이터: 마크다운 ![image](url) 형태를 img 태그로 변환
-                   .replace(/!\[image\]\((.*?)\)/g, '<img src="$1" referrerpolicy="no-referrer" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />')
+                   .replace(/!\[image\]\((.*?)\)/g, `<img src="$1" referrerpolicy="${deal.source === 'arca' ? 'origin' : 'no-referrer'}" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" />`)
                    // 2. [Fix 1] a 태그가 없는 bare URL을 하이퍼링크로 변환 (이미 링크 속 URL은 제외)
                    .replace(/(?<![=">])(https?:\/\/[^\s<>"'）】\)]+)/g, (match) =>
                      `<a href="${match}" target="_blank" rel="noopener noreferrer" style="color: #3b82f6; text-decoration: underline; word-break: break-all;">${match}</a>`
@@ -235,6 +240,8 @@ export default function DealDetail() {
           </div>
         )}
 
+        {/* ✨ [Fix 2] 가격 추이 그래프: KEYWORD_GROUPS 매칭 상품(group_slug 또는 matched_keyword)만 표시 */}
+        {(deal.group_slug || deal.matched_keyword) && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
           <h3 className="text-sm font-bold text-gray-700 mb-3">📈 가격 추이 (최근 6개월)</h3>
           {chartData ? (
@@ -245,6 +252,7 @@ export default function DealDetail() {
             </div>
           )}
         </div>
+        )}
 
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t md:static md:bg-transparent md:border-t-0 md:p-0 mt-4 flex flex-col gap-2">
           
@@ -260,11 +268,17 @@ export default function DealDetail() {
 
           
 
-                {/* ✨ 쿠팡 파트너스 안내 문구 추가 */}
-          {(deal.shop_url?.includes('coupang.com') || deal.url?.includes('coupang.com')) && (
+                {/* ✨ 제휴 수수료 안내 문구 */}
+          {(deal.shop_url?.includes('coupang.com') || deal.shop_url?.includes('link.coupang.com') || deal.url?.includes('coupang.com')) && (
             <p className="text-[10px] text-gray-400 text-center mt-1 leading-tight">
               이 포스팅은 쿠팡 파트너스 활동의 일환으로,<br />
               이에 따른 일정액의 수수료를 제공받습니다.
+            </p>
+          )}
+          {(deal.shop_url?.includes('click.linkprice.com')) && (
+            <p className="text-[10px] text-gray-400 text-center mt-1 leading-tight">
+              이 포스팅은 제휴마케팅 활동의 일환으로,<br />
+              이에 따른 일정액의 수수료를 제공받을 수 있습니다.
             </p>
           )}
 
