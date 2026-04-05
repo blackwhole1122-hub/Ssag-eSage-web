@@ -99,6 +99,8 @@ export default function AdminDashboard() {
             <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🗂️</div>
             <p className="text-base font-bold text-gray-800">핫딜 데이터 관리</p>
             <p className="text-xs text-gray-400 mt-1">전체 데이터 조회 및 매칭 확인</p>
+          
+          <a href="/admin/keyword-suggestions">🔍 키워드 제안 관리</a>
           </a>
         </div>
       </main>
