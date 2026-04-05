@@ -7,7 +7,7 @@ import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend
 } from 'chart.js';
 // 👇 중복 다 지우고 이렇게 딱 한 줄씩만 남기기!
-import { KEYWORD_GROUPS } from '@/lib/keywords';
+import { loadKeywordGroups } from '@/lib/keywords';
 import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
@@ -49,10 +49,12 @@ export default function DealDetail() {
           if (hoursElapsed > 72) setIsExpired(true);
         }
 
-        // 👇 여기서부터 등급 계산 로직 추가
+        // ★ DB에서 키워드 그룹 로드
+        const { allGroups } = await loadKeywordGroups();
+
+        // 👇 여기서부터 등급 계산 로직
         let matchedSlug = data.group_slug;
         if (!matchedSlug) {
-          const allGroups = Object.values(KEYWORD_GROUPS).flat();
           const matchGroup = allGroups.find(g => g.keywords.some(k => {
             const normTitle = data.title?.replace(/\s/g, '') || "";
             return k.split(' ').every(w => data.title?.includes(w) || normTitle.includes(w.replace(/\s/g, '')));
@@ -92,7 +94,8 @@ export default function DealDetail() {
     async function fetchGraphData() {
       if (!deal) return;
       
-      const allGroups = Object.values(KEYWORD_GROUPS).flat();
+      // ★ DB에서 키워드 그룹 로드
+      const { allGroups } = await loadKeywordGroups();
       let targetKw = deal.matched_keyword;
       
       if (!targetKw) {

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
-import { KEYWORD_GROUPS } from '@/lib/keywords';
+import { useKeywordGroups } from '@/lib/keywords';
 import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
 
 export default function Home() {
@@ -17,6 +17,9 @@ export default function Home() {
   const [priceStats, setPriceStats] = useState({});
   const observerRef = useRef(null);
   const [user, setUser] = useState(null);
+
+  // ★ DB에서 키워드 그룹 동적 로딩
+  const { allGroups, loading: kwLoading } = useKeywordGroups();
 
   // useEffect 안에 유저 세션 확인 로직 추가
 useEffect(() => {
@@ -170,8 +173,7 @@ useEffect(() => {
 
   // 등급 계산기
   const getDealGrade = (deal) => {
-    // 1. 우리가 관리하는 모든 그룹(slug) 리스트 추출
-    const allGroups = Object.values(KEYWORD_GROUPS).flat();
+    // ★ DB에서 로드한 allGroups 사용 (하드코딩 KEYWORD_GROUPS 대신)
     const managedSlugs = allGroups.map(g => g.slug);
 
     // 2. 이 딜이 어떤 그룹에 속하는지 결정
