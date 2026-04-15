@@ -1,0 +1,138 @@
+'use client'
+
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+
+export default function BlogCategoryTabs({
+  posts,
+  categories,
+  initialCategoryName,
+}) {
+  const router = useRouter();
+
+  const initialCategoryId = useMemo(() => {
+    if (!initialCategoryName) return null;
+    return categories.find((c) => c.name === initialCategoryName)?.id ?? null;
+  }, [categories, initialCategoryName]);
+
+  const [activeCategoryId, setActiveCategoryId] = useState(initialCategoryId);
+
+  useEffect(() => {
+    setActiveCategoryId(initialCategoryId);
+  }, [initialCategoryId]);
+
+  const updateURL = useCallback(
+    (categoryId) => {
+      let url;
+
+      if (categoryId) {
+        const category = categories.find((c) => c.id === categoryId);
+        if (category) {
+          url = `/blog?category=${encodeURIComponent(category.name)}`;
+          router.push(url, { scroll: false });
+        }
+      } else {
+        url = '/blog';
+        router.push(url, { scroll: false });
+      }
+
+      if (typeof window !== 'undefined' && url) {
+        sessionStorage.setItem('blogListUrl', url);
+      }
+    },
+    [router, categories]
+  );
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const currentUrl = window.location.pathname + window.location.search;
+      sessionStorage.setItem('blogListUrl', currentUrl);
+    }
+  }, [activeCategoryId]);
+
+  const filteredPosts = activeCategoryId
+    ? posts.filter((post) => post.category_id === activeCategoryId)
+    : posts;
+
+  return (
+    <div>
+      {/* 카테고리 탭 */}
+      <nav className="flex gap-2 mb-8 overflow-x-auto pb-2 scrollbar-hide">
+        <button
+          onClick={() => {
+            setActiveCategoryId(null);
+            updateURL(null);
+          }}
+          className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all whitespace-nowrap ${
+            activeCategoryId === null
+              ? 'bg-[#1E293B] text-white'
+              : 'bg-[#FAF6F0] text-[#64748B] hover:bg-[#F0EAE0] hover:text-[#1E293B]'
+          }`}
+        >
+          전체
+        </button>
+
+        {categories.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => {
+              setActiveCategoryId(cat.id);
+              updateURL(cat.id);
+            }}
+            className={`px-4 py-2 rounded-full text-[13px] font-medium transition-all whitespace-nowrap ${
+              activeCategoryId === cat.id
+                ? 'bg-[#1E293B] text-white'
+                : 'bg-[#FAF6F0] text-[#64748B] hover:bg-[#F0EAE0] hover:text-[#1E293B]'
+            }`}
+          >
+            {cat.name}
+          </button>
+        ))}
+      </nav>
+
+      {/* 블로그 글 목록 그리드 */}
+      {filteredPosts.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredPosts.map((post) => (
+            <Link
+              key={post.id}
+              href={`/blog/${post.slug}`}
+              className="group bg-white rounded-2xl p-5 border border-[#E2E8F0] hover:border-[#0ABAB5] transition-all duration-200 overflow-hidden flex flex-col deal-card"
+            >
+              <div className="w-12 h-12 flex items-center justify-center bg-[#FAF6F0] rounded-xl text-2xl mb-4 group-hover:bg-[#E6FAF9] transition-colors">
+                {post.emoji || '📝'}
+              </div>
+
+              <h2 className="text-[16px] font-bold text-[#1E293B] mb-1.5 group-hover:text-[#0ABAB5] transition-colors line-clamp-1">
+                {post.title}
+              </h2>
+
+              <p className="text-[13px] text-[#64748B] line-clamp-2 leading-relaxed mb-4 flex-1">
+                {post.description}
+              </p>
+
+              <div className="text-[12px] text-[#94A3B8] font-medium pt-3 border-t border-[#E2E8F0]">
+                {new Date(post.created_at).toLocaleDateString('ko-KR', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </div>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <div className="py-20 text-center bg-white rounded-2xl border border-[#E2E8F0]">
+          <span className="text-4xl block mb-3">🦀</span>
+          <p className="text-[15px] font-semibold text-[#1E293B]">
+            이 카테고리에는 아직 글이 없어요
+          </p>
+          <p className="text-[13px] text-[#64748B] mt-1">
+            곧 유용한 정보가 올라올 예정이에요
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

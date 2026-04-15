@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+:root {
+  /* 🦀 싸게사게 — 해변의 꽃게 */
+  --sea: #0ABAB5;            /* 에메랄드 바다 — 메인 */
+  --sea-deep: #089490;       /* 깊은 바다 — 호버 */
+  --sea-light: #E6FAF9;      /* 얕은 바다 — 배경 강조 */
+  --sea-pale: #F0FDFC;       /* 물거품 */
+  --sand: #FAF6F0;           /* 모래사장 — 메인 배경 */
+  --sand-dark: #F0EAE0;      /* 젖은 모래 */
+  --coral: #FF6B6B;          /* 산호/꽃게 — 가격, 할인 */
+  --coral-light: #FFF0F0;    /* 산호빛 배경 */
+  --sky: #2D7EF7;            /* 하늘 — 보조 강조 */
+  --sky-light: #EBF2FF;      /* 하늘빛 배경 */
+  --text: #1E293B;           /* 깊은 밤바다 */
+  --text-sub: #64748B;       /* 멀리 보이는 수평선 */
+  --text-hint: #94A3B8;      /* 물안개 */
+  --card: #FFFFFF;
+  --border: #E2E8F0;
+}
+
+body {
+  background-color: var(--sand);
+  color: var(--text);
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* 카드 인터랙션 */
+.deal-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.deal-card:active { transform: scale(0.98); }
+@media (hover: hover) {
+  .deal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(10, 186, 181, 0.1);
+  }
+}
+
+/* 카테고리 카드 호버 */
+.cat-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+@media (hover: hover) {
+  .cat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(10, 186, 181, 0.12);
+    border-color: var(--sea);
+  }
+}
+
+/* 애니메이션 */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.anim-up { animation: fadeInUp 0.4s ease-out forwards; opacity: 0; }
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.anim-slide-down { animation: slideDown 0.2s ease-out forwards; }
+
+@keyframes wave {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-3px); }
+}
+.anim-wave { animation: wave 3s ease-in-out infinite; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-bg {
+  background: linear-gradient(90deg, var(--sea-light) 25%, var(--sea-pale) 50%, var(--sea-light) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+/* 로딩 스피너 */
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-spinner {
+  width: 28px; height: 28px;
+  border: 3px solid var(--sand-dark);
+  border-top-color: var(--sea);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* 파도 배경 효과 */
+.wave-bg {
+  background: linear-gradient(180deg, 
+    rgba(10, 186, 181, 0.03) 0%, 
+    rgba(10, 186, 181, 0.0) 100%
+  );
+}
