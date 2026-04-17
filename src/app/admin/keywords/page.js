@@ -28,6 +28,14 @@ export default function AdminKeywords() {
     slug: '',
     keywords: ''
   });
+  const [editModal, setEditModal] = useState(null); // group 객체
+  const [editForm, setEditForm] = useState({
+    category: '식품',
+    sub_category: '',
+    group_name: '',
+    slug: '',
+    keywords: ''
+  });
 
   useEffect(() => { fetchGroups(); }, []);
   useEffect(() => { if (tab === 'suggestions') fetchSuggestions(); }, [tab]);
@@ -67,6 +75,44 @@ export default function AdminKeywords() {
     if (!confirm('정말 삭제하시겠습니까?')) return;
     const { error } = await supabase.from('keyword_groups').delete().eq('id', id);
     if (!error) fetchGroups();
+  }
+
+  function openEditModal(group) {
+    setEditModal(group);
+    setEditForm({
+      category: group.category || '식품',
+      sub_category: group.sub_category || '',
+      group_name: group.group_name || '',
+      slug: group.slug || '',
+      keywords: Array.isArray(group.keywords) ? group.keywords.join(', ') : '',
+    });
+  }
+
+  async function handleUpdate() {
+    if (!editModal) return;
+    if (!editForm.sub_category || !editForm.group_name || !editForm.slug || !editForm.keywords)
+      return alert('모든 빈칸을 채워주세요!');
+
+    const kwArray = editForm.keywords.split(',').map(k => k.trim()).filter(Boolean);
+    const { error } = await supabase
+      .from('keyword_groups')
+      .update({
+        category: editForm.category,
+        sub_category: editForm.sub_category,
+        group_name: editForm.group_name,
+        slug: editForm.slug,
+        keywords: kwArray,
+      })
+      .eq('id', editModal.id);
+
+    if (error) {
+      alert('수정 실패: ' + error.message);
+      return;
+    }
+
+    alert('품목 그룹 수정 완료! ✨');
+    setEditModal(null);
+    fetchGroups();
   }
 
   // ── 제안 키워드 ────────────────────────────────────────────────
@@ -226,7 +272,15 @@ export default function AdminKeywords() {
                       <span className="text-gray-300">🔑</span> {g.keywords.join(', ')}
                     </p>
                   </div>
-                  <button onClick={() => handleDelete(g.id)} className="text-xs font-bold text-gray-300 hover:text-red-500 transition-colors px-2">삭제</button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditModal(g)}
+                      className="text-xs font-bold text-blue-400 hover:text-blue-600 transition-colors px-2"
+                    >
+                      수정
+                    </button>
+                    <button onClick={() => handleDelete(g.id)} className="text-xs font-bold text-gray-300 hover:text-red-500 transition-colors px-2">삭제</button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -356,6 +410,58 @@ export default function AdminKeywords() {
               <button onClick={handleApprove}
                 className="flex-1 py-3 rounded-2xl bg-blue-500 text-white font-black text-sm hover:bg-blue-600 transition-colors">
                 등록하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end md:items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl">
+            <h2 className="text-base font-black text-gray-800 mb-1">품목 그룹 수정</h2>
+            <p className="text-xs text-gray-400 mb-5">
+              기존 품목 그룹 <strong className="text-blue-500">"{editModal.group_name}"</strong> 정보를 수정합니다.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-400 ml-1">대분류</label>
+                <select value={editForm.category} onChange={e => setEditForm({...editForm, category: e.target.value})}
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400">
+                  <option>식품</option><option>생활잡화</option><option>가전/디지털</option><option>상품권</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-400 ml-1">소분류</label>
+                <input type="text" value={editForm.sub_category} onChange={e => setEditForm({...editForm, sub_category: e.target.value})}
+                  placeholder="예: 생수/음료" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-400 ml-1">품목명</label>
+                <input type="text" value={editForm.group_name} onChange={e => setEditForm({...editForm, group_name: e.target.value})}
+                  placeholder="예: 삼다수 2L" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-gray-400 ml-1">슬러그</label>
+                <input type="text" value={editForm.slug} onChange={e => setEditForm({...editForm, slug: e.target.value})}
+                  placeholder="예: samdasoo-2l" className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400" />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <label className="text-[11px] font-bold text-gray-400 ml-1">매칭 키워드 (쉼표 구분, 제외는 !키워드)</label>
+                <textarea value={editForm.keywords} onChange={e => setEditForm({...editForm, keywords: e.target.value})}
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-400 h-16 resize-none" />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setEditModal(null)}
+                className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-500 font-bold text-sm">
+                취소
+              </button>
+              <button onClick={handleUpdate}
+                className="flex-1 py-3 rounded-2xl bg-blue-500 text-white font-black text-sm hover:bg-blue-600 transition-colors">
+                저장하기
               </button>
             </div>
           </div>
