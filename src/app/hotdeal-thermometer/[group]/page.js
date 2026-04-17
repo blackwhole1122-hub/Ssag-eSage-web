@@ -226,7 +226,7 @@ export default function DetailPage() {
         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 space-y-4">
           <h3 className="text-sm font-black text-gray-800">이 가격, 어떻게 보면 될까요?</h3>
           <p className="text-xs text-gray-600 leading-relaxed">
-            이 페이지의 등급은 어제까지의 데이터를 기준으로 계산합니다. 기본은 최근 1년 데이터를 사용하고,
+            이 페이지의 등급은 어제까지의 데이터를 기준으로 계산했어요. 기본은 최근 1년 데이터를 사용하고,
             데이터가 1년보다 짧거나 최근 1년 표본이 20건 미만이면 보유한 전체 기간 기준으로 계산해요.
           </p>
           <p className="text-xs text-gray-700 leading-relaxed">
