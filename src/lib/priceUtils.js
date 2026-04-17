@@ -45,6 +45,7 @@ export const getUnitPrice = (item, productName = '', preferredUnit = null) => {
 
   const db100ml = toNumber(item?.price_per_100ml);
   const db100g = toNumber(item?.price_per_100g);
+  const dbPerUnit = toNumber(item?.price_per_unit);
   const priceNum = extractBasePrice(item);
 
   if (!priceNum && !db100ml && !db100g) {
@@ -70,6 +71,10 @@ export const getUnitPrice = (item, productName = '', preferredUnit = null) => {
 
   if (db100ml > 0) return { price: db100ml, label: '100ml당' };
   if (db100g > 0) return { price: db100g, label: '100g당' };
+  if (dbPerUnit > 0) {
+    const quantity = extractQuantity(productName);
+    return { price: dbPerUnit, label: unitLabel(quantity) };
+  }
 
   const calc = calculatePer100(priceNum, productName);
   if (calc) return calc;

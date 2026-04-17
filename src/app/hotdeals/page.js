@@ -3,7 +3,7 @@ import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useKeywordGroups } from '@/lib/keywords';
 import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
-import { matchesGroupByTitle } from '@/lib/keywordMatcher';
+import { extractPreferredUnitFromKeywords, matchesGroupByTitle } from '@/lib/keywordMatcher';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -146,9 +146,10 @@ const fetchDeals = useCallback(async (pageNum = 0, reset = false) => {
       matchedGroup = allGroups.find(g => matchesGroupByTitle(deal.title, g.keywords));
     }
     if (!matchedGroup) return null;
+    const preferredUnit = extractPreferredUnitFromKeywords(matchedGroup.keywords);
     const benchmark = priceStats[matchedGroup.slug]; if (!benchmark) return null;
     const raw = parseInt(deal.price?.replace(/[^\d]/g, '') || "0");
-    const { price: up, label: ul } = getUnitPrice({ price_num: raw }, deal.title);
+    const { price: up, label: ul } = getUnitPrice({ price_num: raw }, deal.title, preferredUnit);
     if (up <= 0) return null;
     const grade = calculateGrade(up, benchmark.ref_low, benchmark.ref_avg);
     return { grade, unitPrice: up, unitLabel: ul, refAvg: benchmark.ref_avg };

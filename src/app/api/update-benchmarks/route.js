@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 import { getUnitPrice } from '@/lib/priceUtils';
-import { matchesGroupByTitle } from '@/lib/keywordMatcher';
+import { extractPreferredUnitFromKeywords, matchesGroupByTitle } from '@/lib/keywordMatcher';
 
 export async function GET(request) {
   // ✨ [수정] fail-closed: CRON_SECRET 미설정 시에도 외부 접근 차단
@@ -71,9 +71,10 @@ export async function GET(request) {
     const oneYearSampleCount = oneYearRows.length;
     const useHoldingPeriod = !hasFullYearData || oneYearSampleCount < 20;
     const targetRows = useHoldingPeriod ? rows : oneYearRows;
+    const preferredUnit = extractPreferredUnitFromKeywords(groupKeywordsMap.get(slug) || []);
 
     const prices = targetRows
-      .map(({ row }) => getUnitPrice(row).price)
+      .map(({ row }) => getUnitPrice(row, row.title || row.group_name || '', preferredUnit).price)
       .filter((price) => Number.isFinite(price) && price > 0);
 
     if (prices.length === 0) return null;

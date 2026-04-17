@@ -9,13 +9,36 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
-import { matchesGroupByTitle } from '@/lib/keywordMatcher';
+import { extractPreferredUnitFromKeywords, matchesGroupByTitle } from '@/lib/keywordMatcher';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Filler, Legend);
 
 export default function DetailPage() {
   const params = useParams();
   const slug = params?.group;
+  const preferredUnit = extractPreferredUnitFromKeywords(product?.keywords || []);
+
+  function getStrictPriceByPreferredUnit(row, fallbackProductName) {
+    if (preferredUnit === '100g') {
+      const v = Number(row?.price_per_100g);
+      return Number.isFinite(v) && v > 0 ? { price: v, label: '100g당' } : { price: 0, label: '100g당' };
+    }
+    if (preferredUnit === '100ml') {
+      const v = Number(row?.price_per_100ml);
+      return Number.isFinite(v) && v > 0 ? { price: v, label: '100ml당' } : { price: 0, label: '100ml당' };
+    }
+    if (preferredUnit === 'unit') {
+      const v = Number(row?.price_per_unit);
+      const unitCount = Number(row?.count);
+      if (Number.isFinite(v) && v > 0) {
+        return { price: v, label: unitCount > 1 ? '1개당' : '개당' };
+      }
+      return { price: 0, label: unitCount > 1 ? '1개당' : '개당' };
+    }
+
+    // 단위 고정이 없을 때만 기존 자동 계산 사용
+    return getUnitPrice(row, fallbackProductName);
+  }
   
   const [product, setProduct] = useState(null);
   const [priceHistory, setPriceHistory] = useState([]);
@@ -66,7 +89,8 @@ export default function DetailPage() {
         let bestDeal = null;
         let bestUnitPrice = Infinity;
         allDeals?.forEach(deal => {
-          const { price } = getUnitPrice(deal, deal.group_name);
+          const fixedUnit = extractPreferredUnitFromKeywords(productData.keywords || []);
+          const { price } = getUnitPrice(deal, deal.group_name, fixedUnit);
           if (price > 0 && price < bestUnitPrice) {
             bestUnitPrice = price;
             bestDeal = deal;
@@ -85,10 +109,12 @@ export default function DetailPage() {
   // --- 🎯 통합 데이터 계산 로직 (메인과 100% 동기화) ---
 
 // --- 🎯 통합 데이터 계산 로직 (price_benchmarks 적용) ---
-  const processedHistory = priceHistory.map(h => {
-    const unitInfo = getUnitPrice(h, product.group_name);
-    return { ...h, price: unitInfo.price, label: unitInfo.label, date: h.crawled_at || h.created_at };
-  });
+  const processedHistory = priceHistory
+    .map(h => {
+      const unitInfo = getStrictPriceByPreferredUnit(h, product.group_name);
+      return { ...h, price: unitInfo.price, label: unitInfo.label, date: h.crawled_at || h.created_at };
+    })
+    .filter((h) => Number.isFinite(h.price) && h.price > 0);
 
   const benchmark = product.benchmark; 
   const latestHistory = processedHistory.length > 0 ? processedHistory[processedHistory.length - 1] : {};
