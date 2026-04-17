@@ -16,6 +16,12 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 export default function DetailPage() {
   const params = useParams();
   const slug = params?.group;
+ 
+  const [product, setProduct] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]);
+  const [activeDeal, setActiveDeal] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [referrer, setReferrer] = useState('/hotdeal-thermometer');
   const preferredUnit = extractPreferredUnitFromKeywords(product?.keywords || []);
 
   function getStrictPriceByPreferredUnit(row, fallbackProductName) {
@@ -40,12 +46,6 @@ export default function DetailPage() {
     return getUnitPrice(row, fallbackProductName);
   }
   
-  const [product, setProduct] = useState(null);
-  const [priceHistory, setPriceHistory] = useState([]);
-  const [activeDeal, setActiveDeal] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [referrer, setReferrer] = useState('/hotdeal-thermometer');
-
   // ✨ 세션 스토리지에서 referrer 읽기
   useEffect(() => {
     if (typeof window !== 'undefined') {
