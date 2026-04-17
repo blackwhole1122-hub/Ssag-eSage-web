@@ -24,6 +24,21 @@ export default async function sitemap() {
     priority: path === '/utility' ? 0.8 : 0.7,
   }));
 
+  const staticPaths = [
+    { path: '/', priority: 1, changeFrequency: 'daily' },
+    { path: '/hotdeals', priority: 0.9, changeFrequency: 'hourly' },
+    { path: '/coupang', priority: 0.9, changeFrequency: 'hourly' },
+    { path: '/hotdeal-thermometer', priority: 0.9, changeFrequency: 'daily' },
+    { path: '/blog', priority: 0.8, changeFrequency: 'weekly' },
+    { path: '/privacy', priority: 0.4, changeFrequency: 'monthly' },
+  ];
+  const staticEntries = staticPaths.map((item) => ({
+    url: `${baseUrl}${item.path}`,
+    lastModified: new Date(),
+    changeFrequency: item.changeFrequency,
+    priority: item.priority,
+  }));
+
   // 1. 핫딜온도계 품목(slug)들 가져오기
   const { data: groups } = await supabase.from('keyword_groups').select('slug');
   const groupEntries = groups?.map((g) => ({
@@ -33,21 +48,7 @@ export default async function sitemap() {
     priority: 0.8,
   })) || [];
 
-  // 2. 최신 핫딜 100개 가져오기
-  const { data: deals } = await supabase
-    .from('hotdeals')
-    .select('id')
-    .order('crawled_at', { ascending: false })
-    .limit(100);
-
-  const dealEntries = deals?.map((d) => ({
-    url: `${baseUrl}/deal/${d.id}`,
-    lastModified: new Date(),
-    changeFrequency: 'hourly',
-    priority: 0.6,
-  })) || [];
-
-  // 3. 공개된 블로그 글 가져오기 (예약 시간 지난 글만 포함)
+  // 2. 공개된 블로그 글 가져오기 (예약 시간 지난 글만 포함)
   const { data: blogPosts } = await supabase
     .from('blog_posts')
     .select('slug, updated_at, created_at, scheduled_at')
@@ -65,12 +66,9 @@ export default async function sitemap() {
     }));
 
   return [
-    { url: baseUrl, lastModified: new Date(), priority: 1 },
-    { url: `${baseUrl}/hotdeal-thermometer`, lastModified: new Date(), priority: 0.9 },
-    { url: `${baseUrl}/blog`, lastModified: new Date(), priority: 0.8 },
+    ...staticEntries,
     ...utilityEntries,
     ...groupEntries,
-    ...dealEntries,
     ...blogEntries,
   ];
 }
