@@ -135,12 +135,28 @@ function markdownToHtml(md = '') {
 async function getPost(slug) {
   const supabase = createClient(supabaseUrl, supabaseKey);
   const normalizedSlug = decodeURIComponent(slug).normalize('NFC');
-  const { data, error } = await supabase
+
+  const extendedSelect = 'id, slug, title, description, content, emoji, created_at, updated_at, scheduled_at, og_image_url, thumbnail_url, tags, category_id, blog_categories(name, slug)';
+  const baseSelect = 'id, slug, title, description, content, emoji, created_at, updated_at, scheduled_at, category_id, blog_categories(name, slug)';
+
+  let { data, error } = await supabase
     .from('blog_posts')
-    .select('id, slug, title, description, content, emoji, created_at, updated_at, scheduled_at, og_image_url, thumbnail_url, tags, category_id, blog_categories(name, slug)')
+    .select(extendedSelect)
     .eq('slug', normalizedSlug)
     .eq('published', true)
     .maybeSingle();
+
+  // Fallback for older DB schemas where optional SEO/media columns are not added yet.
+  if (error && error.code === '42703') {
+    const fallback = await supabase
+      .from('blog_posts')
+      .select(baseSelect)
+      .eq('slug', normalizedSlug)
+      .eq('published', true)
+      .maybeSingle();
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.error('Supabase post fetch error:', error.message);
@@ -152,7 +168,12 @@ async function getPost(slug) {
     const now = new Date();
     if (scheduledDate > new Date(now.getTime() + 60000)) return null;
   }
-  return data;
+  return {
+    ...data,
+    og_image_url: data?.og_image_url || null,
+    thumbnail_url: data?.thumbnail_url || null,
+    tags: Array.isArray(data?.tags) ? data.tags : [],
+  };
 }
 
 async function getRelatedPosts(post) {
