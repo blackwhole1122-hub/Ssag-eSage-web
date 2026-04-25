@@ -261,9 +261,6 @@ const fetchDeals = useCallback(async (pageNum = 0, reset = false) => {
 
       {/* ── 딜 리스트 ── */}
       <main className="px-4 pt-3 pb-10">
-        <div className="lg:hidden mb-4 flex justify-center">
-          <CoupangSidebarBanner mode="mobile" />
-        </div>
         {loading && (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <div className="loading-spinner"></div>

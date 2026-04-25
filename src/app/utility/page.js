@@ -90,9 +90,6 @@ export default function UtilityPage() {
 
       {/* 본문 */}
       <main className="px-4 py-8 md:py-12">
-        <div className="lg:hidden mb-4 flex justify-center">
-          <CoupangSidebarBanner mode="mobile" />
-        </div>
         <header className="mb-10">
           <h1 className="text-[28px] font-bold text-[#1E293B] mb-3">🛠️ 유틸리티</h1>
           <p className="text-[15px] text-[#64748B] leading-relaxed">

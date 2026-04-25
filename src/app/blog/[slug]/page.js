@@ -295,7 +295,7 @@ export default async function BlogPostPage({ params }) {
       <div className="bg-[#FAF6F0] min-h-screen">
         <div className="max-w-[1500px] mx-auto lg:px-4">
           <div className="lg:flex lg:items-start lg:gap-6">
-            <div className="hidden lg:block w-[250px] shrink-0" aria-hidden="true" />
+          <div className="hidden lg:block w-[250px] shrink-0" aria-hidden="true" />
             <div className="w-full lg:max-w-4xl lg:flex-1 lg:min-w-0">
               <header className="sticky top-0 z-30 bg-[#FFF9E6] border-b border-[#E2E8F0]">
                 <div className="bg-[#FFF9E6] px-4 py-3 flex items-center justify-between">
@@ -334,9 +334,6 @@ export default async function BlogPostPage({ params }) {
               </header>
 
               <article className="px-4 py-10 md:py-16">
-                <div className="lg:hidden mb-4 flex justify-center">
-                  <CoupangSidebarBanner mode="mobile" />
-                </div>
         <Link href="/blog" className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0ABAB5] transition-colors mb-8">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           정보모음
@@ -408,7 +405,7 @@ export default async function BlogPostPage({ params }) {
               </article>
             </div>
 
-            <aside className="hidden lg:block w-[250px] shrink-0 pt-24 sticky top-24 self-start">
+          <aside className="hidden lg:block w-[250px] shrink-0 pt-24 sticky top-24 self-start">
               <div>
                 <CoupangSidebarBanner mode="desktop" />
               </div>

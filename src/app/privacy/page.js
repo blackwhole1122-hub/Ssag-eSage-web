@@ -20,7 +20,6 @@ export default function PrivacyPolicy() {
           </p>
           <ul className="list-disc pl-5 mt-2 flex flex-col gap-1">
             <li>서비스 이용 통계 분석 및 서비스 개선</li>
-            <li>광고 서비스 제공 (Google AdSense)</li>
             <li>이상 접근 탐지 및 보안 유지</li>
           </ul>
         </section>
@@ -69,10 +68,6 @@ export default function PrivacyPolicy() {
             <li>
               <strong>Google Analytics / Google Tag Manager</strong>: 방문자 통계 수집.
               Google의 개인정보처리방침은 <a href="https://policies.google.com/privacy" target="_blank" className="text-blue-500 underline">여기</a>에서 확인할 수 있습니다.
-            </li>
-            <li>
-              <strong>Google AdSense</strong>: 광고 서비스 제공.
-              광고 맞춤 설정은 <a href="https://adssettings.google.com" target="_blank" className="text-blue-500 underline">여기</a>에서 변경할 수 있습니다.
             </li>
             <li>
               <strong>Vercel</strong>: 웹사이트 호스팅 서비스.
@@ -125,7 +120,7 @@ export default function PrivacyPolicy() {
 
       </div>
 
-       <footer className="text-center p-6 text-gray-400 text-xs">
+      <footer className="text-center p-6 text-gray-400 text-xs">
         © 2026 싸게사게
         <br />
         <a href="/privacy" className="underline hover:text-gray-600 mt-1 inline-block">

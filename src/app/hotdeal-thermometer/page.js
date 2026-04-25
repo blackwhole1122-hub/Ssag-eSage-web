@@ -153,9 +153,6 @@ export default async function HotdealThermometerPage({ searchParams }) {
 
       {/* ── 본문 ── */}
       <main className="px-4 pt-4 pb-10">
-        <div className="lg:hidden mb-4 flex justify-center">
-          <CoupangSidebarBanner mode="mobile" />
-        </div>
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-5 mb-6">
           <h1 className="text-[18px] font-bold text-[#1E293B] mb-2">핫딜온도계 개요</h1>
           <p className="text-[14px] text-[#475569] leading-relaxed mb-3">

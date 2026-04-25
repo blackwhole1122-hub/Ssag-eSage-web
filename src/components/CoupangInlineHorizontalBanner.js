@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { acquireCoupangSlot, loadCoupangPartners, releaseCoupangSlot } from '@/lib/coupangPartners';
 
 function getBannerSize(containerWidth, fillWidth, preset) {
   if (preset === 'wide70') {
@@ -11,9 +12,14 @@ function getBannerSize(containerWidth, fillWidth, preset) {
     return { width, height };
   }
 
-  const width = fillWidth
-    ? Math.max(320, Math.round(containerWidth || 0))
-    : Math.max(320, Math.min(760, Math.round((containerWidth || 0) * 0.72)));
+  if (fillWidth) {
+    // Use fixed ad-safe sizes to avoid renderer fallback/left alignment glitches.
+    const container = Math.max(320, Math.round(containerWidth || 320));
+    if (container >= 760) return { width: 760, height: 150 };
+    return { width: 320, height: 100 };
+  }
+
+  const width = Math.max(320, Math.min(760, Math.round((containerWidth || 0) * 0.72)));
   const height = Math.max(90, Math.min(150, Math.round(width * 0.22)));
   return { width, height };
 }
@@ -45,13 +51,13 @@ export default function CoupangInlineHorizontalBanner({ fillWidth = false, prese
     const slot = slotRef.current;
     if (!slot || !size) return;
 
+    const slotKey = `inline:${preset}:${size.width}x${size.height}`;
+    if (!acquireCoupangSlot(slotKey)) return;
+
     const token = ++renderTokenRef.current;
 
     slot.innerHTML = '';
-
-    const externalScript = document.createElement('script');
-    externalScript.src = 'https://ads-partners.coupang.com/g.js';
-    externalScript.async = true;
+    let cancelled = false;
 
     const inlineScript = document.createElement('script');
     inlineScript.text = `
@@ -65,27 +71,32 @@ export default function CoupangInlineHorizontalBanner({ fillWidth = false, prese
       });
     `;
 
-    externalScript.onload = () => {
-      if (renderTokenRef.current !== token) return;
+    loadCoupangPartners().then((ok) => {
+      if (!ok || cancelled) return;
+      if (renderTokenRef.current !== token || !slot.isConnected) return;
       slot.appendChild(inlineScript);
-    };
-
-    slot.appendChild(externalScript);
+    });
 
     return () => {
+      cancelled = true;
       slot.innerHTML = '';
+      releaseCoupangSlot(slotKey);
     };
-  }, [size?.width, size?.height]);
+  }, [size?.width, size?.height, preset]);
 
   if (!size) return null;
 
   return (
-    <div className="mt-6" ref={wrapperRef}>
+    <div className="mt-6 flex flex-col items-center" ref={wrapperRef}>
       <div
         className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white"
-        style={{ width: '100%', maxWidth: fillWidth ? 'none' : `${size.width}px`, height: `${size.height}px` }}
+        style={{ width: `${size.width}px`, maxWidth: '100%', height: `${size.height}px` }}
       >
-        <div ref={slotRef} style={{ width: `${size.width}px`, height: `${size.height}px` }} />
+        <div
+          ref={slotRef}
+          data-coupang-slot="true"
+          style={{ width: `${size.width}px`, height: `${size.height}px` }}
+        />
       </div>
       <p className="mt-2 text-center text-[11px] text-[#64748B]">
         이 배너는 제휴 활동의 일환으로 일정액의 수수료를 제공받습니다
