@@ -28,8 +28,10 @@ export async function GET(request) {
   }
 
   try {
-    const ACCESS_KEY = process.env.COUPANG_ACCESS_KEY;
-    const SECRET_KEY = process.env.COUPANG_SECRET_KEY;
+    const ACCESS_KEY =
+      process.env.COUPANG_PARTNERS_ACCESS_KEY || process.env.COUPANG_ACCESS_KEY;
+    const SECRET_KEY =
+      process.env.COUPANG_PARTNERS_SECRET_KEY || process.env.COUPANG_SECRET_KEY;
 
     if (!ACCESS_KEY || !SECRET_KEY) {
       return NextResponse.redirect(url);

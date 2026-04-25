@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import BlogCategoryTabs from './BlogCategoryTabs.js';
+import CoupangSidebarBanner from '@/components/CoupangSidebarBanner';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -74,7 +75,11 @@ export default async function BlogListPage({ searchParams }) {
   const listJsonLd = buildItemListJsonLd(posts);
 
   return (
-    <div className="max-w-4xl mx-auto bg-[#FAF6F0] min-h-screen">
+    <div className="bg-[#FAF6F0] min-h-screen">
+      <div className="max-w-[1500px] mx-auto lg:px-4">
+        <div className="lg:flex lg:items-start lg:gap-6">
+          <div className="hidden lg:block w-[250px] shrink-0" aria-hidden="true" />
+          <div className="w-full lg:max-w-4xl lg:flex-1 lg:min-w-0">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(listJsonLd) }} />
 
       <header className="sticky top-0 z-30 bg-[#FFF9E6] border-b border-[#E2E8F0]">
@@ -114,6 +119,9 @@ export default async function BlogListPage({ searchParams }) {
       </header>
 
       <main className="px-4 py-8 md:py-12">
+        <div className="lg:hidden mb-4 flex justify-center">
+          <CoupangSidebarBanner mode="mobile" />
+        </div>
         <header className="mb-10">
           <p className="text-[15px] text-[#64748B] leading-relaxed">
             절약과 가격비교에 도움이 되는 실전형 가이드를 모았습니다.
@@ -126,6 +134,15 @@ export default async function BlogListPage({ searchParams }) {
           initialCategoryName={initialCategoryName}
         />
       </main>
+          </div>
+
+          <aside className="hidden lg:block w-[250px] shrink-0 pt-24 sticky top-24 self-start">
+            <div>
+              <CoupangSidebarBanner mode="desktop" />
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }

@@ -97,6 +97,7 @@ export default function DetailPage() {
           }
         });
         setActiveDeal(bestDeal);
+
       }
       setLoading(false);
     }
@@ -166,6 +167,14 @@ export default function DetailPage() {
       pointRadius: 1,
     }]
   }; // 👈 여기서 객체가 안전하게 닫혀야 함!
+
+  const coupangSearchUrl = product?.group_name
+    ? `https://www.coupang.com/np/search?component=&q=${encodeURIComponent(product.group_name)}`
+    : null;
+
+  const coupangRedirectUrl = coupangSearchUrl
+    ? `/api/coupang?url=${encodeURIComponent(coupangSearchUrl)}`
+    : null;
 
   return (
     <div className="max-w-xl mx-auto bg-gray-50 min-h-screen">
@@ -245,6 +254,24 @@ export default function DetailPage() {
             <li>핫딜 특성상 가격은 빠르게 바뀔 수 있으니, 결제 전 한 번 더 확인해 주세요.</li>
           </ul>
         </section>
+        <div>
+          {coupangRedirectUrl ? (
+            <a
+              href={coupangRedirectUrl}
+              className="block w-full text-center bg-[#0ABAB5] hover:bg-[#09A7A2] text-white font-extrabold text-[16px] py-4 rounded-2xl transition-colors"
+            >
+              쿠팡에서 최저가 구매하기
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="block w-full text-center bg-gray-200 text-gray-500 font-bold text-[16px] py-4 rounded-2xl cursor-not-allowed"
+            >
+              쿠팡 링크 준비중
+            </button>
+          )}
+        </div>
       </main>
     </div>
   );

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import CoupangSidebarBanner from '@/components/CoupangSidebarBanner';
 
 export default function UtilityPage() {
   const utilities = [
@@ -47,7 +48,11 @@ export default function UtilityPage() {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto bg-[#FAF6F0] min-h-screen">
+    <div className="bg-[#FAF6F0] min-h-screen">
+      <div className="max-w-[1500px] mx-auto lg:px-4">
+        <div className="lg:flex lg:items-start lg:gap-6">
+          <div className="hidden lg:block w-[250px] shrink-0" aria-hidden="true" />
+          <div className="w-full lg:max-w-4xl lg:flex-1 lg:min-w-0">
       {/* 헤더 */}
       <header className="sticky top-0 z-30 bg-[#FFF9E6] border-b border-[#E2E8F0]">
         <div className="bg-[#FFF9E6] px-4 py-3 flex items-center justify-between">
@@ -85,6 +90,9 @@ export default function UtilityPage() {
 
       {/* 본문 */}
       <main className="px-4 py-8 md:py-12">
+        <div className="lg:hidden mb-4 flex justify-center">
+          <CoupangSidebarBanner mode="mobile" />
+        </div>
         <header className="mb-10">
           <h1 className="text-[28px] font-bold text-[#1E293B] mb-3">🛠️ 유틸리티</h1>
           <p className="text-[15px] text-[#64748B] leading-relaxed">
@@ -110,6 +118,15 @@ export default function UtilityPage() {
           ))}
         </div>
       </main>
+          </div>
+
+          <aside className="hidden lg:block w-[250px] shrink-0 pt-24 sticky top-24 self-start">
+            <div>
+              <CoupangSidebarBanner mode="desktop" />
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }

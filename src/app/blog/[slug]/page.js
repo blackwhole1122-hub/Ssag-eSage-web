@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import CoupangSidebarBanner from '@/components/CoupangSidebarBanner';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -291,7 +292,51 @@ export default async function BlogPostPage({ params }) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <article className="max-w-4xl mx-auto px-4 py-10 md:py-16">
+      <div className="bg-[#FAF6F0] min-h-screen">
+        <div className="max-w-[1500px] mx-auto lg:px-4">
+          <div className="lg:flex lg:items-start lg:gap-6">
+            <div className="hidden lg:block w-[250px] shrink-0" aria-hidden="true" />
+            <div className="w-full lg:max-w-4xl lg:flex-1 lg:min-w-0">
+              <header className="sticky top-0 z-30 bg-[#FFF9E6] border-b border-[#E2E8F0]">
+                <div className="bg-[#FFF9E6] px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Link href="/blog" className="flex items-center">
+                      <span className="text-[24px] font-black text-[#1E293B] tracking-tight leading-[48px]">
+                        정보모음
+                      </span>
+                    </Link>
+                  </div>
+                  <Link
+                    href="/"
+                    className="text-[13px] font-medium text-[#64748B] hover:text-[#1E293B] px-3 py-1.5 rounded-full hover:bg-[#FAF6F0] transition-colors"
+                  >
+                    홈으로
+                  </Link>
+                </div>
+
+                <nav className="bg-[#FFF9E6] px-4 pb-1 flex items-center gap-5">
+                  <Link href="/hotdeals" className="py-3 text-[14px] font-medium text-[#64748B] hover:text-[#1E293B] transition-colors">
+                    핫딜모음
+                  </Link>
+                  <Link href="/coupang" className="py-3 text-[14px] font-medium text-[#64748B] hover:text-[#1E293B] transition-colors">
+                    쿠팡핫딜
+                  </Link>
+                  <Link href="/hotdeal-thermometer" className="py-3 text-[14px] font-medium text-[#64748B] hover:text-[#1E293B] transition-colors">
+                    핫딜온도계
+                  </Link>
+                  <Link href="/blog" className="relative py-3 text-[14px] font-bold text-[#0ABAB5] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2.5px] after:bg-[#0ABAB5] after:rounded-full">
+                    정보모음
+                  </Link>
+                  <Link href="/utility" className="py-3 text-[14px] font-medium text-[#64748B] hover:text-[#1E293B] transition-colors">
+                    유틸리티
+                  </Link>
+                </nav>
+              </header>
+
+              <article className="px-4 py-10 md:py-16">
+                <div className="lg:hidden mb-4 flex justify-center">
+                  <CoupangSidebarBanner mode="mobile" />
+                </div>
         <Link href="/blog" className="inline-flex items-center gap-1.5 text-[13px] text-[#64748B] hover:text-[#0ABAB5] transition-colors mb-8">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
           정보모음
@@ -360,7 +405,17 @@ export default async function BlogPostPage({ params }) {
             다른 글 더 보기
           </Link>
         </footer>
-      </article>
+              </article>
+            </div>
+
+            <aside className="hidden lg:block w-[250px] shrink-0 pt-24 sticky top-24 self-start">
+              <div>
+                <CoupangSidebarBanner mode="desktop" />
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
     </>
   );
 }

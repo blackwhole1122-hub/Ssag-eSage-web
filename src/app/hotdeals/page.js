@@ -6,6 +6,7 @@ import { getUnitPrice, calculateGrade } from '@/lib/priceUtils';
 import { extractPreferredUnitFromKeywords, matchesGroupByTitle } from '@/lib/keywordMatcher';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import CoupangSidebarBanner from '@/components/CoupangSidebarBanner';
 
 function HotdealsListInner() {
   const router = useRouter();
@@ -168,7 +169,11 @@ const fetchDeals = useCallback(async (pageNum = 0, reset = false) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto bg-[#FAF6F0] min-h-screen">
+    <div className="bg-[#FAF6F0] min-h-screen">
+      <div className="max-w-[1500px] mx-auto lg:px-4">
+        <div className="lg:flex lg:justify-center lg:items-start lg:gap-6">
+          <div className="hidden lg:block w-[250px] shrink-0" aria-hidden="true" />
+          <div className="w-full lg:max-w-4xl lg:flex-1 lg:min-w-0">
 
       {/* ── 헤더 ── */}
       <div className="sticky top-0 z-30">
@@ -256,6 +261,9 @@ const fetchDeals = useCallback(async (pageNum = 0, reset = false) => {
 
       {/* ── 딜 리스트 ── */}
       <main className="px-4 pt-3 pb-10">
+        <div className="lg:hidden mb-4 flex justify-center">
+          <CoupangSidebarBanner mode="mobile" />
+        </div>
         {loading && (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <div className="loading-spinner"></div>
@@ -327,6 +335,15 @@ const fetchDeals = useCallback(async (pageNum = 0, reset = false) => {
           <span className="text-[#94A3B8]">© 2026 싸게사게</span>
         </div>
       </footer>
+          </div>
+
+          <aside className="hidden lg:block w-[250px] shrink-0 pt-24 sticky top-24 self-start">
+            <div>
+              <CoupangSidebarBanner mode="desktop" />
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }

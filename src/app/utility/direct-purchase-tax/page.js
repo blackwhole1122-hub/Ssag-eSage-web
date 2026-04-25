@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import CoupangInlineHorizontalBanner from '@/components/CoupangInlineHorizontalBanner';
 
 const NAV_LINKS = [
   ['핫딜모음', '/hotdeals'], ['쿠팡핫딜', '/coupang'],
@@ -344,6 +345,8 @@ export default function DirectPurchaseTaxPage() {
             <p className="text-[14px] text-[#94A3B8]">상품 가격을 입력하면 세금을 계산해드려요</p>
           </div>
         )}
+
+        <CoupangInlineHorizontalBanner />
 
         <div className="mt-6 bg-[#FFFBEB] rounded-xl p-4 border border-[#FDE68A]">
           <p className="text-[12px] text-[#92400E] leading-relaxed font-semibold mb-2">⚠️ 꼭 확인하세요</p>

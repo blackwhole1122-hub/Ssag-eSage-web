@@ -3,6 +3,7 @@ import { Suspense, useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import CoupangSidebarBanner from '@/components/CoupangSidebarBanner';
 
 function CoupangHotdealsInner() {
   const router = useRouter();
@@ -61,6 +62,10 @@ function CoupangHotdealsInner() {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    fetch('/api/coupang/reclassify', { method: 'POST' }).catch(() => {});
+  }, []);
+
   const requestIdRef = useRef(0);
 
   const fetchDeals = useCallback(async (pageNum = 0, reset = false) => {
@@ -110,7 +115,11 @@ function CoupangHotdealsInner() {
   }, [hasMore, loadingMore, loading, fetchDeals]);
 
   return (
-    <div className="max-w-4xl mx-auto bg-[#FAF6F0] min-h-screen">
+    <div className="bg-[#FAF6F0] min-h-screen">
+      <div className="max-w-[1500px] mx-auto lg:px-4">
+        <div className="lg:flex lg:items-start lg:gap-6">
+          <div className="hidden lg:block w-[250px] shrink-0" aria-hidden="true" />
+          <div className="w-full lg:max-w-4xl lg:flex-1 lg:min-w-0">
       <div className="sticky top-0 z-30">
         <header className="bg-[#FFF9E6] px-4 py-3 flex items-center justify-between">
           <Link href="/coupang" className="flex items-center"><img src="/logo-coupang-hotdeal.png" alt="쿠팡핫딜" className="h-12 w-auto object-contain" /></Link>
@@ -181,6 +190,9 @@ function CoupangHotdealsInner() {
       </div>
 
       <main className="px-4 pt-3 pb-10">
+        <div className="lg:hidden mb-4 flex justify-center">
+          <CoupangSidebarBanner mode="mobile" />
+        </div>
         {loading && (<div className="flex flex-col items-center justify-center py-24 gap-3"><div className="loading-spinner"></div><span className="text-[14px] text-[#64748B]">쿠팡 핫딜을 불러오고 있어요</span></div>)}
         {!loading && allDeals.length === 0 && (<div className="flex flex-col items-center justify-center py-24 gap-2"><span className="text-4xl">🛒</span><p className="text-[15px] font-semibold text-[#1E293B]">상품이 없어요</p></div>)}
         <div className="flex flex-col gap-2">
@@ -211,6 +223,15 @@ function CoupangHotdealsInner() {
           {!hasMore && !loading && (<p className="text-[13px] text-[#94A3B8]">마지막 핫딜입니다</p>)}
         </div>
       </main>
+          </div>
+
+          <aside className="hidden lg:block w-[250px] shrink-0 pt-24 sticky top-24 self-start">
+            <div>
+              <CoupangSidebarBanner mode="desktop" />
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }

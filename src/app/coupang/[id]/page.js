@@ -1,11 +1,10 @@
-'use client'
+'use client';
 
 import { useState, useEffect, use } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
 export default function CoupangDetailPage({ params: promiseParams }) {
-  // ✨ Next.js 16: params를 unwrap
   const params = use(promiseParams);
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,9 +13,7 @@ export default function CoupangDetailPage({ params: promiseParams }) {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedReferrer = sessionStorage.getItem('coupangListUrl');
-      if (savedReferrer) {
-        setReferrer(savedReferrer);
-      }
+      if (savedReferrer) setReferrer(savedReferrer);
     }
 
     async function fetchProduct() {
@@ -48,34 +45,40 @@ export default function CoupangDetailPage({ params: promiseParams }) {
   if (!product) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-3">
-        <span className="text-4xl">🛒</span>
-        <p className="text-[15px] font-semibold">상품을 찾을 수 없습니다</p>
-        <Link href="/coupang" className="text-[#0ABAB5] underline">쿠팡핫딜로 돌아가기</Link>
+        <span className="text-4xl">🔎</span>
+        <p className="text-[15px] font-semibold">상품을 찾을 수 없습니다.</p>
+        <Link href="/coupang" className="text-[#0ABAB5] underline">
+          쿠팡핫딜로 돌아가기
+        </Link>
       </div>
     );
   }
 
+  const coupangTargetUrl =
+    product.partners_link ||
+    product.product_url ||
+    product.url ||
+    '';
+  const partnerRedirectUrl = coupangTargetUrl
+    ? `/api/coupang?url=${encodeURIComponent(coupangTargetUrl)}`
+    : '';
+
   return (
     <div className="max-w-4xl mx-auto bg-[#FAF6F0] min-h-screen">
-      {/* ✨ 뒤로가기 버튼 - 필터 유지 */}
       <header className="bg-white border-b border-[#E2E8F0] px-4 py-3 flex items-center gap-3 sticky top-0 z-30">
-        <Link 
-          href={referrer}
-          className="text-[#64748B] hover:text-[#0ABAB5]"
-        >
+        <Link href={referrer} className="text-[#64748B] hover:text-[#0ABAB5]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
+            <path d="M19 12H5M12 19l-7-7 7-7" />
           </svg>
         </Link>
         <h1 className="text-[16px] font-bold text-[#1E293B]">쿠팡핫딜</h1>
       </header>
 
-      {/* 본문 내용 */}
       <main className="p-4">
         {product.image_url && (
           <div className="bg-white rounded-xl p-4 mb-4">
-            <img 
-              src={product.image_url} 
+            <img
+              src={product.image_url}
               alt={product.name}
               className="w-full max-w-md mx-auto"
               referrerPolicy="no-referrer"
@@ -88,7 +91,7 @@ export default function CoupangDetailPage({ params: promiseParams }) {
             {product.category}
           </span>
           <h1 className="text-[18px] font-bold mb-3">{product.name}</h1>
-          
+
           {product.original_price > 0 && (
             <div className="flex items-center gap-2 mb-2">
               <span className="text-[14px] text-[#94A3B8] line-through">
@@ -99,20 +102,19 @@ export default function CoupangDetailPage({ params: promiseParams }) {
               </span>
             </div>
           )}
-          
+
           <div className="flex items-center gap-2">
             <span className="text-[24px] font-extrabold text-[#FF6B6B]">
               {product.discount_price.toLocaleString()}원
             </span>
-            <span className="text-[12px] font-bold text-[#5CE1E6]">특가</span>
+            <span className="text-[12px] font-bold text-[#5CE1E6]">무료배송</span>
           </div>
         </div>
 
-        {/* 구매하러 가기 버튼 및 안내 문구 */}
-        {product.partners_link && (
+        {partnerRedirectUrl && (
           <div className="mt-4">
-            <a 
-              href={product.partners_link}
+            <a
+              href={partnerRedirectUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full bg-[#0ABAB5] text-white text-center py-4 rounded-xl font-bold text-[16px] mb-3"
@@ -120,7 +122,7 @@ export default function CoupangDetailPage({ params: promiseParams }) {
               구매하러 가기
             </a>
             <p className="text-[12px] text-black text-center font-medium opacity-80">
-              *싸게사게의 쿠팡핫딜은 수익링크가 적용되어 있지 않아요.
+              이 배너는 제휴 활동의 일환으로 일정액의 수수료를 제공받습니다
             </p>
           </div>
         )}

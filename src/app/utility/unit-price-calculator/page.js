@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import CoupangInlineHorizontalBanner from '@/components/CoupangInlineHorizontalBanner';
 
 // ── 단위 변환 ──────────────────────────────────────────────────
 const UNIT_BASE = {
@@ -340,6 +341,8 @@ export default function UnitPriceCalculatorPage() {
             })()}
           </div>
         )}
+
+        <CoupangInlineHorizontalBanner />
 
         {/* ── 안내 ── */}
         <div className="bg-[#F8FAFC] rounded-xl p-4 border border-[#E2E8F0]">

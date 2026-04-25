@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react';
 import Link from 'next/link';
+import CoupangInlineHorizontalBanner from '@/components/CoupangInlineHorizontalBanner';
 
 export default function ImageBackgroundRemoverPage() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -409,6 +410,8 @@ export default function ImageBackgroundRemoverPage() {
             </div>
           </div>
         )}
+
+        <CoupangInlineHorizontalBanner />
 
         <div className="mt-8 p-4 bg-white rounded-xl border border-[#E2E8F0]">
           <p className="text-[12px] text-[#64748B] leading-relaxed">

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import { calculateGrade } from '@/lib/priceUtils';
+import CoupangSidebarBanner from '@/components/CoupangSidebarBanner';
  
 const categoryOrder = ['식품', '생활잡화', '가전/디지털', '상품권'];
 const foodSubOrder = ['가공식품', '음료/탄산', '음료', '음료/에너지음료', '생수', '디저트/아이스크림', '신선식품', '쌀/잡곡', '영양제'];
@@ -84,7 +85,11 @@ export default async function HotdealThermometerPage({ searchParams }) {
     : [activeCategory];
 
   return (
-    <div className="max-w-4xl mx-auto bg-[#FAF6F0] min-h-screen">
+    <div className="bg-[#FAF6F0] min-h-screen">
+      <div className="max-w-[1500px] mx-auto lg:px-4">
+        <div className="lg:flex lg:items-start lg:gap-6">
+          <div className="hidden lg:block w-[250px] shrink-0" aria-hidden="true" />
+          <div className="w-full lg:max-w-4xl lg:flex-1 lg:min-w-0">
 
       {/* ── 헤더 ── */}
       <div className="sticky top-0 z-30">
@@ -148,6 +153,9 @@ export default async function HotdealThermometerPage({ searchParams }) {
 
       {/* ── 본문 ── */}
       <main className="px-4 pt-4 pb-10">
+        <div className="lg:hidden mb-4 flex justify-center">
+          <CoupangSidebarBanner mode="mobile" />
+        </div>
         <section className="bg-white rounded-2xl border border-[#E2E8F0] p-5 mb-6">
           <h1 className="text-[18px] font-bold text-[#1E293B] mb-2">핫딜온도계 개요</h1>
           <p className="text-[14px] text-[#475569] leading-relaxed mb-3">
@@ -249,6 +257,15 @@ export default async function HotdealThermometerPage({ searchParams }) {
           </div>
         )}
       </main>
+          </div>
+
+          <aside className="hidden lg:block w-[250px] shrink-0 pt-24 sticky top-24 self-start">
+            <div>
+              <CoupangSidebarBanner mode="desktop" />
+            </div>
+          </aside>
+        </div>
+      </div>
     </div>
   );
 }

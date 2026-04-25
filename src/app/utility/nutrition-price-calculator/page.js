@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
+import CoupangInlineHorizontalBanner from '@/components/CoupangInlineHorizontalBanner';
 
 const NAV_LINKS = [
   ['핫딜모음', '/hotdeals'], ['쿠팡핫딜', '/coupang'],
@@ -303,6 +304,8 @@ export default function NutritionPriceCalculatorPage() {
             })()}
           </div>
         )}
+
+        <CoupangInlineHorizontalBanner />
 
         {/* 안내 */}
         <div className="bg-[#F8FAFC] rounded-xl p-4 border border-[#E2E8F0]">
