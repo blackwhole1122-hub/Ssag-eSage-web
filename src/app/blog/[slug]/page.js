@@ -41,11 +41,47 @@ function slugifyText(text = '') {
     .replace(/-+/g, '-');
 }
 
+function shouldUseImageProxy(src = '') {
+  try {
+    const parsed = new URL(src);
+    const host = parsed.hostname.toLowerCase();
+    return (
+      host === 'ac-p1.namu.la' ||
+      host.endsWith('.namu.la') ||
+      host === 'i1.ruliweb.com' ||
+      host === 'i2.ruliweb.com' ||
+      host === 'i3.ruliweb.com' ||
+      host.endsWith('.ruliweb.com')
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getProxyReferer(src = '') {
+  try {
+    const host = new URL(src).hostname.toLowerCase();
+    if (host.includes('namu.la')) return 'namu.wiki';
+    if (host.includes('ruliweb.com')) return 'bbs.ruliweb.com';
+    return host;
+  } catch {
+    return '';
+  }
+}
+
+function buildSafeImageSrc(src = '') {
+  const raw = String(src || '').trim();
+  if (!raw) return raw;
+  if (!shouldUseImageProxy(raw)) return raw;
+  const ref = getProxyReferer(raw);
+  return `/api/img-proxy?url=${encodeURIComponent(raw)}${ref ? `&ref=${encodeURIComponent(ref)}` : ''}`;
+}
+
 function renderMarkdownImageFigure(alt = '', src = '', caption = '') {
   const safeAlt = escapeHtml(alt);
-  const safeSrc = escapeHtml(src);
+  const safeSrc = escapeHtml(buildSafeImageSrc(src));
   const safeCaption = escapeHtml(caption || '');
-  return `<figure class="md-figure"><img src="${safeSrc}" alt="${safeAlt}" class="md-img" loading="lazy" />${safeCaption ? `<figcaption class="md-figcaption">${safeCaption}</figcaption>` : ''}</figure>`;
+  return `<figure class="md-figure"><img src="${safeSrc}" alt="${safeAlt}" class="md-img" loading="lazy" referrerpolicy="no-referrer" />${safeCaption ? `<figcaption class="md-figcaption">${safeCaption}</figcaption>` : ''}</figure>`;
 }
 
 function isExternalHref(href = '') {
