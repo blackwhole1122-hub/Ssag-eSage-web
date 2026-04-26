@@ -9,6 +9,12 @@ import DOMPurify from 'dompurify';
 export default function DealDetailPage({ params: promiseParams }) {
   const params = use(promiseParams);
   const [deal, setDeal] = useState(null);
+  const [thermometerInfo, setThermometerInfo] = useState({
+    loading: true,
+    hasMatchedSlug: false,
+    href: '/hotdeal-thermometer',
+    lastPrice: null,
+  });
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -32,6 +38,57 @@ export default function DealDetailPage({ params: promiseParams }) {
         console.error('Error:', error);
       } else {
         setDeal(data);
+        const slug = String(data?.group_slug || '').trim();
+
+        if (slug) {
+          const [{ data: groupData }, { data: latestPriceRow }] = await Promise.all([
+            supabase
+              .from('keyword_groups')
+              .select('slug')
+              .eq('slug', slug)
+              .maybeSingle(),
+            supabase
+              .from('price_history')
+              .select('price_num, price')
+              .eq('group_slug', slug)
+              .order('crawled_at', { ascending: false, nullsFirst: false })
+              .order('created_at', { ascending: false, nullsFirst: false })
+              .limit(1)
+              .maybeSingle(),
+          ]);
+
+          const parsedPriceNum = Number(latestPriceRow?.price_num);
+          const parsedFromText = Number(String(latestPriceRow?.price || '').replace(/[^\d]/g, ''));
+          const lastPrice =
+            Number.isFinite(parsedPriceNum) && parsedPriceNum > 0
+              ? parsedPriceNum
+              : Number.isFinite(parsedFromText) && parsedFromText > 0
+                ? parsedFromText
+                : null;
+
+          if (groupData?.slug) {
+            setThermometerInfo({
+              loading: false,
+              hasMatchedSlug: true,
+              href: `/hotdeal-thermometer/${groupData.slug}`,
+              lastPrice,
+            });
+          } else {
+            setThermometerInfo({
+              loading: false,
+              hasMatchedSlug: false,
+              href: '/hotdeal-thermometer',
+              lastPrice: null,
+            });
+          }
+        } else {
+          setThermometerInfo({
+            loading: false,
+            hasMatchedSlug: false,
+            href: '/hotdeal-thermometer',
+            lastPrice: null,
+          });
+        }
       }
       setLoading(false);
     }
@@ -62,6 +119,9 @@ export default function DealDetailPage({ params: promiseParams }) {
   const cleanedRawContent = (deal.content || '')
     // Remove common crawler artifacts that appear as broken trailing markup.
     .replace(/\r\n/g, '\n')
+    // Remove affiliate disclosure lines captured from crawlers.
+    .replace(/^.*(?:제휴마케팅 활동의 일환|일정액의 수수료를 제공받을 수 있습니다|쿠팡파트너스의 일환).*(?:\n|$)/gim, '')
+    .replace(/^.*(?:\[\s*이\s*포스팅은|<\s*\[\s*이\s*포스팅은).*(?:\n|$)/gim, '')
     .replace(/^\s*["'`]*\s*<\s*$/gm, '')
     .replace(/^\s*["'`]+\s*$/gm, '')
     .replace(/(?:\s|&nbsp;)*(?:"|&quot;|&#34;|&#x22;)?(?:<|&lt;|&#60;|&#x3c;|\\u003c)\s*$/i, '')
@@ -111,6 +171,7 @@ export default function DealDetailPage({ params: promiseParams }) {
   });
 
   const sanitizedContentNormalized = sanitizedContent
+    .replace(/(?:\s|&nbsp;)*(?:\[\s*이\s*포스팅은.*?수수료를\s*제공받을\s*수\s*있습니다\.?\s*\]?)/gim, '')
     .replace(/(?:&quot;|&#34;|&#x22;)\s*&lt;\s*$/i, '')
     .replace(/^\s*(?:&quot;|&#34;|&#x22;)\s*&lt;\s*$/gim, '')
     .replace(/(?:\s|&nbsp;)*(?:&lt;|&#60;|&#x3c;|<)\s*$/i, '');
@@ -163,6 +224,35 @@ export default function DealDetailPage({ params: promiseParams }) {
             dangerouslySetInnerHTML={{ __html: sanitizedContentNormalized }}
           />
         </div>
+
+        {!thermometerInfo.loading && (
+          <div className="mb-4 rounded-2xl border border-[#E2E8F0] bg-white p-4">
+            {thermometerInfo.hasMatchedSlug ? (
+              <div className="space-y-2">
+                <p className="text-[13px] text-[#475569]">
+                  수집된 마지막 가격은{' '}
+                  <span className="font-bold text-[#1E293B]">
+                    {thermometerInfo.lastPrice ? `${thermometerInfo.lastPrice.toLocaleString()}원` : '확인 중'}
+                  </span>
+                  이에요.
+                </p>
+                <a
+                  href={thermometerInfo.href}
+                  className="inline-flex items-center gap-1 text-[13px] font-bold text-[#0ABAB5] hover:underline"
+                >
+                  가격이력을 보려면 클릭하세요
+                </a>
+              </div>
+            ) : (
+              <a
+                href={thermometerInfo.href}
+                className="inline-flex items-center gap-1 text-[13px] font-bold text-[#0ABAB5] hover:underline"
+              >
+                가격이력 확인하러 가기
+              </a>
+            )}
+          </div>
+        )}
 
         {deal.title && (
           <a
