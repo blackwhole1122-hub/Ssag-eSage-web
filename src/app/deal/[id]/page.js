@@ -60,9 +60,12 @@ export default function DealDetailPage({ params: promiseParams }) {
   }
 
   const cleanedRawContent = (deal.content || '')
-    // Remove common trailing crawler artifacts such as a standalone "<" or "\"<".
+    // Remove common crawler artifacts that appear as broken trailing markup.
+    .replace(/\r\n/g, '\n')
     .replace(/^\s*["'`]*\s*<\s*$/gm, '')
-    .replace(/^\s*["'`]+\s*$/gm, '');
+    .replace(/^\s*["'`]+\s*$/gm, '')
+    .replace(/(?:\s|&nbsp;)*(?:"|&quot;|&#34;|&#x22;)?(?:<|&lt;|&#60;|&#x3c;|\\u003c)\s*$/i, '')
+    .replace(/(?:\s|&nbsp;)*(?:\\u003c|\\x3c)\s*$/i, '');
 
   const sanitizedContent = DOMPurify.sanitize(cleanedRawContent, {
     ALLOWED_TAGS: [
@@ -108,8 +111,9 @@ export default function DealDetailPage({ params: promiseParams }) {
   });
 
   const sanitizedContentNormalized = sanitizedContent
-    .replace(/(?:&quot;|&#34;)\s*&lt;\s*$/i, '')
-    .replace(/^\s*(?:&quot;|&#34;)\s*&lt;\s*$/gim, '');
+    .replace(/(?:&quot;|&#34;|&#x22;)\s*&lt;\s*$/i, '')
+    .replace(/^\s*(?:&quot;|&#34;|&#x22;)\s*&lt;\s*$/gim, '')
+    .replace(/(?:\s|&nbsp;)*(?:&lt;|&#60;|&#x3c;|<)\s*$/i, '');
 
   const formatDate = (iso) => {
     if (!iso) return '';
@@ -192,9 +196,6 @@ export default function DealDetailPage({ params: promiseParams }) {
             >
               원본게시글 보기
             </a>
-            <p className="mb-8 text-center text-[12px] text-[#94A3B8]">
-              이 배너는 제휴 활동의 일환으로 일정액의 수수료를 제공받습니다
-            </p>
           </>
         )}
       </main>
