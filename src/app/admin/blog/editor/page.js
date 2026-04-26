@@ -465,7 +465,11 @@ function getSeoSignalInfo(score) {
 
 function formatInline(text = '') {
   return escapeHtml(text)
-    .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)/g, '<img alt="$1" src="$2" data-preview-src="$2" class="preview-image my-4 max-w-full rounded-2xl cursor-zoom-in border border-gray-200" />')
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)(?:\{width=(\d{1,3})%\})?/g, (_m, alt, src, _caption, width) => {
+      const widthPercent = normalizeImageWidthPercent(width);
+      const widthStyle = widthPercent ? `width:${widthPercent};` : 'width:auto;';
+      return `<img alt="${alt}" src="${src}" data-preview-src="${src}" style="${widthStyle}max-width:min(100%,760px);height:auto;" class="preview-image my-4 rounded-2xl cursor-zoom-in border border-gray-200" />`;
+    })
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, linkText, href) => {
       const rel = buildExternalRel(href);
       return `<a href="${href}" target="_blank" rel="${rel}" class="text-blue-600 underline break-all">${linkText}</a>`;
@@ -476,24 +480,34 @@ function formatInline(text = '') {
     .replace(/`(.+?)`/g, '<code class="rounded bg-gray-100 px-1.5 py-0.5 text-[0.9em]">$1</code>');
 }
 
+function normalizeImageWidthPercent(value = '') {
+  const raw = String(value || '').replace('%', '').trim();
+  if (!raw) return '';
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return '';
+  return `${Math.max(20, Math.min(100, Math.round(num)))}%`;
+}
+
 function parseMarkdownImageLine(line = '') {
-  const match = line.trim().match(/^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/);
+  const match = line.trim().match(/^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)(?:\{width=(\d{1,3})%\})?$/);
   if (!match) return null;
 
   return {
     alt: match[1] || '',
     src: match[2] || '',
     caption: match[3] || '',
+    widthPercent: normalizeImageWidthPercent(match[4] || ''),
   };
 }
 
-function renderImageFigure({ alt, src, caption }) {
+function renderImageFigure({ alt, src, caption, widthPercent }) {
   const safeAlt = escapeHtml(alt || '');
   const safeSrc = escapeHtml(src || '');
   const safeCaption = escapeHtml(caption || '');
+  const imageWidthStyle = widthPercent ? `width:${widthPercent};` : 'width:auto;';
 
   return `
-    <figure class="my-6">\n      <img alt="${safeAlt}" src="${safeSrc}" data-preview-src="${safeSrc}" class="preview-image w-full max-w-full rounded-2xl cursor-zoom-in border border-gray-200" />\n      ${safeCaption ? `<figcaption class="mt-2 text-center text-sm text-gray-500">${safeCaption}</figcaption>` : ''}\n    </figure>
+    <figure class="my-6 flex flex-col items-center">\n      <img alt="${safeAlt}" src="${safeSrc}" data-preview-src="${safeSrc}" style="${imageWidthStyle}max-width:min(100%,760px);height:auto;" class="preview-image rounded-2xl cursor-zoom-in border border-gray-200" />\n      ${safeCaption ? `<figcaption class="mt-2 text-center text-sm text-gray-500">${safeCaption}</figcaption>` : ''}\n    </figure>
   `;
 }
 
@@ -709,6 +723,7 @@ function BlogEditorInner() {
 
   const [showEmoji, setShowEmoji] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showSplitPreview, setShowSplitPreview] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -726,6 +741,7 @@ function BlogEditorInner() {
   const [pendingContentImage, setPendingContentImage] = useState(null);
   const [imageAltInput, setImageAltInput] = useState('');
   const [imageCaptionInput, setImageCaptionInput] = useState('');
+  const [imageWidthInput, setImageWidthInput] = useState('100');
 
   const draftKey = useMemo(() => `blog-editor-draft:${editId || 'new'}`, [editId]);
 
@@ -1121,6 +1137,7 @@ function BlogEditorInner() {
     setPendingContentImage(file);
     setImageAltInput(defaultAlt);
     setImageCaptionInput('');
+    setImageWidthInput('100');
     setImageDialogOpen(true);
 
     if (e.target) e.target.value = '';
@@ -1132,13 +1149,16 @@ function BlogEditorInner() {
     setPendingContentImage(null);
     setImageAltInput('');
     setImageCaptionInput('');
+    setImageWidthInput('100');
   }
 
-  function buildImageMarkdown(alt, src, caption = '') {
+  function buildImageMarkdown(alt, src, caption = '', width = '') {
     const safeAlt = String(alt || '').replace(/\]/g, '\\]').trim();
     const safeCaption = String(caption || '').replace(/"/g, '\\"').trim();
+    const safeWidth = normalizeImageWidthPercent(width);
     const titlePart = safeCaption ? ` "${safeCaption}"` : '';
-    return `\n![${safeAlt}](${src}${titlePart})\n`;
+    const widthPart = safeWidth ? `{width=${safeWidth}}` : '';
+    return `\n![${safeAlt}](${src}${titlePart})${widthPart}\n`;
   }
 
   async function confirmContentImageInsert() {
@@ -1151,12 +1171,20 @@ function BlogEditorInner() {
 
     const ta = textareaRef.current;
     const currentScrollPos = ta?.scrollTop || 0;
+    const start = ta?.selectionStart ?? content.length;
+    const end = ta?.selectionEnd ?? content.length;
+    let newCursorPos = start;
 
     try {
       setUploading(true);
       const publicUrl = await uploadImageFile(pendingContentImage);
-      const imgMd = buildImageMarkdown(imageAltInput, publicUrl, imageCaptionInput);
-      setContent((prev) => prev + imgMd);
+      const imgMd = buildImageMarkdown(imageAltInput, publicUrl, imageCaptionInput, imageWidthInput);
+      setContent((prev) => {
+        const safeStart = Math.max(0, Math.min(start, prev.length));
+        const safeEnd = Math.max(safeStart, Math.min(end, prev.length));
+        newCursorPos = safeStart + imgMd.length;
+        return prev.slice(0, safeStart) + imgMd + prev.slice(safeEnd);
+      });
       closeImageDialog();
     } catch (error) {
       alert('업로드 실패: ' + error.message);
@@ -1166,7 +1194,8 @@ function BlogEditorInner() {
       setTimeout(() => {
         if (ta) {
           ta.focus();
-          ta.scrollTop = Math.max(currentScrollPos, ta.scrollHeight);
+          ta.setSelectionRange(newCursorPos, newCursorPos);
+          ta.scrollTop = currentScrollPos;
         }
       }, 50);
     }
@@ -1828,16 +1857,31 @@ function BlogEditorInner() {
                 <button onClick={() => fileInputRef.current?.click()} className="px-3 py-1.5 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg">
                   🖼️ {uploading ? '업로드 중...' : '이미지'}
                 </button>
+                <button
+                  onClick={() => setShowSplitPreview((prev) => !prev)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg ${showSplitPreview ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
+                  {showSplitPreview ? 'Split ON' : 'Split Preview'}
+                </button>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleContentImageUpload} />
               </div>
 
-              <textarea
+              <div className={showSplitPreview ? 'grid lg:grid-cols-2' : ''}>
+                <textarea
                 ref={textareaRef}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder="마크다운으로 작성하세요..."
-                className="w-full h-[32rem] px-5 py-4 text-sm font-mono text-gray-800 resize-none focus:outline-none leading-relaxed"
-              />
+                className={`w-full h-[32rem] px-5 py-4 text-sm font-mono text-gray-800 resize-none focus:outline-none leading-relaxed ${showSplitPreview ? 'border-r border-gray-100' : ''}`}
+                />
+                {showSplitPreview && (
+                  <div
+                    onClick={handlePreviewClick}
+                    className="max-w-none px-6 py-5 min-h-[32rem] text-gray-800 leading-relaxed prose prose-sm prose-img:rounded-2xl overflow-y-auto"
+                    dangerouslySetInnerHTML={{ __html: markdownToHtml(content) }}
+                  />
+                )}
+              </div>
             </>
           ) : (
             <div className="grid lg:grid-cols-[220px_1fr] gap-0">
@@ -1993,8 +2037,6 @@ function BlogEditorInner() {
                   placeholder="예: 무선 이어폰 제품 박스 사진"
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
                 />
-              </div>
-
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-bold text-gray-600">캡션 (선택)</label>
                 <input
@@ -2004,6 +2046,21 @@ function BlogEditorInner() {
                   placeholder="예: 2026년 4월 할인 행사 대표 이미지"
                   className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
                 />
+              </div>
+            </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-600">Width (%)</label>
+                <input
+                  type="number"
+                  min={20}
+                  max={100}
+                  step={5}
+                  value={imageWidthInput}
+                  onChange={(e) => setImageWidthInput(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <div className="text-[11px] text-gray-400">20~100 사이로 입력하면 이미지 너비가 적용됩니다.</div>
               </div>
             </div>
 

@@ -79,11 +79,46 @@ function buildSafeImageSrc(src = '') {
   return `/api/img-proxy?url=${encodeURIComponent(raw)}${ref ? `&ref=${encodeURIComponent(ref)}` : ''}`;
 }
 
-function renderMarkdownImageFigure(alt = '', src = '', caption = '') {
+function normalizeImageWidthPercent(value = '') {
+  const raw = String(value || '').replace('%', '').trim();
+  if (!raw) return '';
+  const num = Number(raw);
+  if (!Number.isFinite(num)) return '';
+  return `${Math.max(20, Math.min(100, Math.round(num)))}%`;
+}
+
+function renderMarkdownImageFigure(alt = '', src = '', caption = '', widthPercent = '') {
   const safeAlt = escapeHtml(alt);
   const safeSrc = escapeHtml(buildSafeImageSrc(src));
   const safeCaption = escapeHtml(caption || '');
-  return `<figure class="md-figure"><img src="${safeSrc}" alt="${safeAlt}" class="md-img" loading="lazy" referrerpolicy="no-referrer" />${safeCaption ? `<figcaption class="md-figcaption">${safeCaption}</figcaption>` : ''}</figure>`;
+  const safeWidth = normalizeImageWidthPercent(widthPercent);
+  const widthStyle = safeWidth ? `width:${safeWidth};` : 'width:auto;';
+  return `<figure class="md-figure"><img src="${safeSrc}" alt="${safeAlt}" class="md-img" style="${widthStyle}max-width:min(100%,760px);height:auto;" loading="lazy" referrerpolicy="no-referrer" />${safeCaption ? `<figcaption class="md-figcaption">${safeCaption}</figcaption>` : ''}</figure>`;
+}
+
+function renderMarkdownTable(block = '') {
+  const lines = block
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) return block;
+  if (!lines.every((line) => line.startsWith('|') && line.endsWith('|'))) return block;
+  if (!/^\|\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|$/.test(lines[1])) return block;
+
+  const headers = lines[0].split('|').slice(1, -1).map((cell) => cell.trim());
+  const rows = lines
+    .slice(2)
+    .map((line) => line.split('|').slice(1, -1).map((cell) => cell.trim()))
+    .filter((row) => row.length > 0);
+
+  if (headers.length === 0) return block;
+
+  return `<div class="md-table-wrap"><table class="md-table"><thead><tr>${headers
+    .map((cell) => `<th class="md-table_th">${cell}</th>`)
+    .join('')}</tr></thead><tbody>${rows
+    .map((row) => `<tr>${row.map((cell) => `<td class="md-table_td">${cell}</td>`).join('')}</tr>`)
+    .join('')}</tbody></table></div>`;
 }
 
 function isExternalHref(href = '') {
@@ -101,9 +136,10 @@ function markdownToHtml(md = '') {
     return `<pre class="md-codeblock"><code class="language-${lang}">${code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`;
   });
   html = html.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>');
-  html = html.replace(/^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)$/gm, (_m, alt, src, caption = '') => {
-    return renderMarkdownImageFigure(alt, src, caption);
+  html = html.replace(/^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"([^"]*)")?\)(?:\{width=(\d{1,3})%\})?$/gm, (_m, alt, src, caption = '', width = '') => {
+    return renderMarkdownImageFigure(alt, src, caption, width);
   });
+  html = html.replace(/((?:^\|.*\|\s*$\n?){2,})/gm, (tableBlock) => renderMarkdownTable(tableBlock));
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, text, href) => {
     const safeHref = escapeHtml(href || '');
     const safeText = escapeHtml(text || '');
@@ -128,7 +164,7 @@ function markdownToHtml(md = '') {
     .map((block) => {
       const t = block.trim();
       if (!t) return '';
-      if (/^<(h[1-6]|pre|ul|blockquote|hr|figure)/.test(t)) return t;
+      if (/^<(h[1-6]|pre|ul|blockquote|hr|figure|div|table)/.test(t)) return t;
       return `<p class="md-p">${t.replace(/\n/g, '<br />')}</p>`;
     })
     .join('\n');
@@ -371,15 +407,19 @@ export default async function BlogPostPage({ params }) {
           [&_.md-h3]:text-[17px] [&_.md-h3]:font-semibold [&_.md-h3]:mt-6 [&_.md-h3]:mb-2 [&_.md-h3]:text-[#1E293B]
           [&_.md-p]:text-[#1E293B] [&_.md-p]:leading-[1.9] [&_.md-p]:mb-5 [&_.md-p]:text-[15px]
           [&_.md-link]:text-[#0ABAB5] [&_.md-link]:underline [&_.md-link]:underline-offset-2
-          [&_.md-figure]:my-6
-          [&_.md-img]:rounded-xl [&_.md-img]:my-6 [&_.md-img]:max-w-full
+          [&_.md-figure]:my-6 [&_.md-figure]:flex [&_.md-figure]:flex-col [&_.md-figure]:items-center
+          [&_.md-img]:rounded-xl [&_.md-img]:my-2 [&_.md-img]:max-w-full
           [&_.md-figcaption]:mt-2 [&_.md-figcaption]:text-center [&_.md-figcaption]:text-[13px] [&_.md-figcaption]:text-[#64748B]
           [&_.md-quote]:border-l-4 [&_.md-quote]:border-[#0ABAB5] [&_.md-quote]:pl-5 [&_.md-quote]:text-[#64748B] [&_.md-quote]:italic [&_.md-quote]:my-6 [&_.md-quote]:bg-[#E6FAF9] [&_.md-quote]:py-3 [&_.md-quote]:pr-4 [&_.md-quote]:rounded-r-lg
           [&_.md-ul]:list-disc [&_.md-ul]:pl-6 [&_.md-ul]:my-5
           [&_.md-li]:text-[#1E293B] [&_.md-li]:mb-2 [&_.md-li]:leading-[1.8]
           [&_.md-codeblock]:bg-[#1E293B] [&_.md-codeblock]:text-[#86EFAC] [&_.md-codeblock]:p-5 [&_.md-codeblock]:rounded-xl [&_.md-codeblock]:overflow-x-auto [&_.md-codeblock]:text-sm [&_.md-codeblock]:my-6
           [&_.md-inline-code]:bg-[#FAF6F0] [&_.md-inline-code]:text-[#FF6B6B] [&_.md-inline-code]:px-1.5 [&_.md-inline-code]:py-0.5 [&_.md-inline-code]:rounded [&_.md-inline-code]:text-sm [&_.md-inline-code]:font-mono
-          [&_.md-hr]:border-[#E2E8F0] [&_.md-hr]:my-8"
+          [&_.md-hr]:border-[#E2E8F0] [&_.md-hr]:my-8
+          [&_.md-table-wrap]:my-6 [&_.md-table-wrap]:overflow-x-auto [&_.md-table-wrap]:rounded-xl [&_.md-table-wrap]:border [&_.md-table-wrap]:border-[#E2E8F0]
+          [&_.md-table]:w-full [&_.md-table]:min-w-[560px] [&_.md-table]:border-collapse [&_.md-table]:text-[14px]
+          [&_.md-table_th]:bg-[#FFF9E6] [&_.md-table_th]:text-left [&_.md-table_th]:text-[#334155] [&_.md-table_th]:font-semibold [&_.md-table_th]:px-4 [&_.md-table_th]:py-3 [&_.md-table_th]:border-b [&_.md-table_th]:border-[#E2E8F0]
+          [&_.md-table_td]:px-4 [&_.md-table_td]:py-3 [&_.md-table_td]:text-[#1E293B] [&_.md-table_td]:border-b [&_.md-table_td]:border-[#F1F5F9]"
           dangerouslySetInnerHTML={{ __html: htmlContent }}
         />
 
