@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { classifyClickEvent, trackLinkClick, trackPageView } from '@/lib/clientAnalytics';
 
 function shouldSkipPath(pathname = '') {
@@ -10,13 +10,12 @@ function shouldSkipPath(pathname = '') {
 
 export default function SiteAnalyticsTracker() {
   const pathname = usePathname() || '';
-  const searchParams = useSearchParams();
-  const search = useMemo(() => (searchParams ? `?${searchParams.toString()}` : ''), [searchParams]);
 
   useEffect(() => {
     if (!pathname || shouldSkipPath(pathname)) return;
+    const search = typeof window !== 'undefined' ? window.location.search : '';
     trackPageView(pathname, search);
-  }, [pathname, search]);
+  }, [pathname]);
 
   useEffect(() => {
     if (!pathname || shouldSkipPath(pathname)) return;
@@ -47,4 +46,3 @@ export default function SiteAnalyticsTracker() {
 
   return null;
 }
-
