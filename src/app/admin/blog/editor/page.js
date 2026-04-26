@@ -10,6 +10,7 @@ import { buildExternalRel } from '@/lib/linkRel';
   - thumbnail_url text
   - og_image_url text
   - tags text[]   (또는 text 로 바꿔서 직접 처리)
+  - affiliate_disclosure boolean
 
   이 코드는 위 컬럼이 없어도 저장 자체가 깨지지 않도록
   "기본 필드로 자동 재시도" fallback을 넣어두었습니다.
@@ -658,6 +659,7 @@ function buildSnapshot(form) {
     thumbnailUrl: form.thumbnailUrl || '',
     ogImageUrl: form.ogImageUrl || '',
     tags: Array.isArray(form.tags) ? form.tags : [],
+    affiliateDisclosure: !!form.affiliateDisclosure,
     focusKeyword: form.focusKeyword || '',
     seoWeights: normalizeSeoWeights(form.seoWeights),
   });
@@ -718,6 +720,7 @@ function BlogEditorInner() {
   const [ogImageUrl, setOgImageUrl] = useState('');
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState('');
+  const [affiliateDisclosure, setAffiliateDisclosure] = useState(false);
   const [focusKeyword, setFocusKeyword] = useState('');
   const [seoWeights, setSeoWeights] = useState(() => createDefaultSeoWeights());
 
@@ -781,10 +784,11 @@ function BlogEditorInner() {
       thumbnailUrl,
       ogImageUrl,
       tags,
+      affiliateDisclosure,
       focusKeyword,
       seoWeights,
     });
-  }, [title, slug, description, content, emoji, published, categoryId, scheduledAt, scheduleEnabled, thumbnailUrl, ogImageUrl, tags, focusKeyword, seoWeights]);
+  }, [title, slug, description, content, emoji, published, categoryId, scheduledAt, scheduleEnabled, thumbnailUrl, ogImageUrl, tags, affiliateDisclosure, focusKeyword, seoWeights]);
 
   const isDirty = autosaveReady && initialSnapshot && currentSnapshot !== initialSnapshot;
 
@@ -816,6 +820,7 @@ function BlogEditorInner() {
         thumbnailUrl: '',
         ogImageUrl: '',
         tags: [],
+        affiliateDisclosure: false,
         focusKeyword: '',
         seoWeights: createDefaultSeoWeights(),
         slugManual: false,
@@ -846,6 +851,7 @@ function BlogEditorInner() {
               : typeof post.tags === 'string'
                 ? post.tags.split(',').map((item) => item.trim()).filter(Boolean)
                 : [],
+            affiliateDisclosure: !!post.affiliate_disclosure,
             focusKeyword: Array.isArray(post.tags)
               ? (post.tags[0] || '')
               : typeof post.tags === 'string'
@@ -892,6 +898,7 @@ function BlogEditorInner() {
       setThumbnailUrl(form.thumbnailUrl);
       setOgImageUrl(form.ogImageUrl);
       setTags(form.tags);
+      setAffiliateDisclosure(!!form.affiliateDisclosure);
       setFocusKeyword(form.focusKeyword || '');
       setSeoWeights(normalizeSeoWeights(form.seoWeights));
       setSlugManual(form.slugManual);
@@ -927,6 +934,7 @@ function BlogEditorInner() {
             thumbnailUrl,
             ogImageUrl,
             tags,
+            affiliateDisclosure,
             focusKeyword,
             seoWeights,
           },
@@ -943,7 +951,7 @@ function BlogEditorInner() {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [autosaveReady, loading, title, slug, description, content, emoji, published, categoryId, scheduledAt, scheduleEnabled, thumbnailUrl, ogImageUrl, tags, focusKeyword, seoWeights, draftKey]);
+  }, [autosaveReady, loading, title, slug, description, content, emoji, published, categoryId, scheduledAt, scheduleEnabled, thumbnailUrl, ogImageUrl, tags, affiliateDisclosure, focusKeyword, seoWeights, draftKey]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -1083,6 +1091,7 @@ function BlogEditorInner() {
       thumbnail_url: thumbnailUrl.trim() || null,
       og_image_url: ogImageUrl.trim() || null,
       tags: normalizeTagsForDb(),
+      affiliate_disclosure: !!affiliateDisclosure,
     };
   }
 
@@ -1094,7 +1103,8 @@ function BlogEditorInner() {
       error.code === '42703' ||
       message.includes('thumbnail_url') ||
       message.includes('og_image_url') ||
-      message.includes('tags')
+      message.includes('tags') ||
+      message.includes('affiliate_disclosure')
     );
   }
 
@@ -1111,7 +1121,7 @@ function BlogEditorInner() {
         : await supabase.from('blog_posts').insert({ ...basePayload, created_at: new Date().toISOString() });
 
       if (!response.error) {
-        alert('기본 저장은 완료됐어요. 다만 대표이미지/OG/태그 컬럼이 DB에 없어서 그 값들은 저장되지 않았어요.');
+        alert('기본 저장은 완료됐어요. 다만 대표이미지/OG/태그/제휴 컬럼이 DB에 없어서 그 값들은 저장되지 않았어요.');
       }
     }
 
@@ -1359,6 +1369,7 @@ function BlogEditorInner() {
       thumbnailUrl,
       ogImageUrl,
       tags,
+      affiliateDisclosure,
       focusKeyword,
       seoWeights,
     });
@@ -1862,6 +1873,13 @@ function BlogEditorInner() {
                   className={`px-3 py-1.5 text-xs font-bold rounded-lg ${showSplitPreview ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'}`}
                 >
                   {showSplitPreview ? 'Split ON' : 'Split Preview'}
+                </button>
+                <button
+                  onClick={() => setAffiliateDisclosure((prev) => !prev)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg ${affiliateDisclosure ? 'bg-emerald-100 text-emerald-700' : 'text-gray-500 hover:bg-gray-100'}`}
+                  title="쿠팡 제휴 문구를 게시글 상단 메타 정보에 노출합니다."
+                >
+                  {affiliateDisclosure ? '제휴 ON' : '제휴'}
                 </button>
                 <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleContentImageUpload} />
               </div>

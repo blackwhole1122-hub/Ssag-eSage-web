@@ -9,6 +9,7 @@ import BlogShareButton from './BlogShareButton';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const SITE_URL = 'https://www.ssagesage.com';
+const AFFILIATE_DISCLOSURE_TEXT = '\uC774 \uAC8C\uC2DC\uBB3C\uC740 \uCFE0\uD321 \uD30C\uD2B8\uB108\uC2A4 \uD65C\uB3D9\uC758 \uC77C\uD658\uC73C\uB85C, \uC774\uC5D0 \uB530\uB978 \uC77C\uC815\uC561\uC758\uC218\uC218\uB8CC\uB97C \uBC1B\uC2B5\uB2C8\uB2E4.';
 const SITE_NAME = '싸게사게';
 
 function escapeHtml(str = '') {
@@ -177,7 +178,7 @@ async function getPost(slug) {
   const supabase = createClient(supabaseUrl, supabaseKey);
   const normalizedSlug = decodeURIComponent(slug).normalize('NFC');
 
-  const extendedSelect = 'id, slug, title, description, content, emoji, created_at, updated_at, scheduled_at, og_image_url, thumbnail_url, tags, category_id, blog_categories(name, slug)';
+  const extendedSelect = 'id, slug, title, description, content, emoji, created_at, updated_at, scheduled_at, og_image_url, thumbnail_url, tags, affiliate_disclosure, category_id, blog_categories(name, slug)';
   const baseSelect = 'id, slug, title, description, content, emoji, created_at, updated_at, scheduled_at, category_id, blog_categories(name, slug)';
 
   let { data, error } = await supabase
@@ -214,6 +215,7 @@ async function getPost(slug) {
     og_image_url: data?.og_image_url || null,
     thumbnail_url: data?.thumbnail_url || null,
     tags: Array.isArray(data?.tags) ? data.tags : [],
+    affiliate_disclosure: !!data?.affiliate_disclosure,
   };
 }
 
@@ -402,6 +404,12 @@ export default async function BlogPostPage({ params }) {
             </time>
             <span>·</span>
             <span>약 {readingMinutes}분 읽기</span>
+            {post.affiliate_disclosure && (
+              <>
+                <span>·</span>
+                <span>{AFFILIATE_DISCLOSURE_TEXT}</span>
+              </>
+            )}
           </div>
         </header>
 
